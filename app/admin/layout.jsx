@@ -1,3 +1,5 @@
+"use client"
+
 import { AuthGuard } from "@/components/auth-guard"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { AdminHeader } from "@/components/admin-header"
