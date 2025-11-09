@@ -1,38 +1,133 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, Eye } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { ordersData } from "@/lib/data/orders"
-import type { Order } from "@/lib/types"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react";
+import { Search, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import orderService from "@/service/orderService";
+
+// ===== Kiểu dữ liệu =====
+type OrderItem = {
+  productName: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+};
+
+type Order = {
+  id: string;
+  customerName: string;
+  staffName: string;
+  promotionCode?: string | null;
+  items: OrderItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMethod: string;
+  createdAt: string;
+  status: string;
+};
 
 export default function OrdersPage() {
-  const [orders] = useState<Order[]>(ordersData)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
+  // ===== Lấy danh sách đơn hàng =====
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await orderService.getAll();
+        if (res.success && Array.isArray(res.data)) {
+          const mapped: Order[] = res.data.map((o: any) => ({
+            id: o.id.toString(),
+            customerName: o.customer?.name || "Khách vãng lai",
+            staffName: o.user?.fullName || "N/A",
+            promotionCode: o.promotion?.promoCode || null,
+            items: o.items?.map((i: any) => ({
+              productName: i.product?.productName || `Sản phẩm #${i.productId}`,
+              price: i.price,
+              quantity: i.quantity,
+              subtotal: i.price * i.quantity,
+            })) ?? [],
+            subtotal: o.totalAmount + o.discountAmount,
+            discount: o.discountAmount,
+            total: o.totalAmount,
+            paymentMethod: "Tiền mặt",
+            createdAt: o.orderDate,
+            status: o.status,
+          }));
+          setOrders(mapped);
+        }
+      } catch (error) {
+        console.error("Lấy danh sách đơn hàng thất bại:", error);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  // ===== Lọc đơn hàng theo tìm kiếm =====
   const filteredOrders = orders.filter(
-    (order) =>
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+    (o) =>
+      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const openDetailDialog = (order: Order) => {
-    setSelectedOrder(order)
-    setIsDetailDialogOpen(true)
-  }
+  // ===== Mở modal chi tiết và gọi API getById =====
+  const openDetailDialog = async (orderId: string) => {
+    try {
+      const res = await orderService.getById(orderId);
+      if (res.success && res.data) {
+        const o = res.data;
+        const mappedOrder: Order = {
+          id: o.id.toString(),
+          customerName: o.customer?.name || "Khách vãng lai",
+          staffName: o.user?.fullName || "N/A",
+          promotionCode: o.promotion?.promoCode || null,
+          items: o.items?.map((i: any) => ({
+            productName: i.product?.productName || `Sản phẩm #${i.productId}`,
+            price: i.price,
+            quantity: i.quantity,
+            subtotal: i.price * i.quantity,
+          })) ?? [],
+          subtotal: o.totalAmount + o.discountAmount,
+          discount: o.discountAmount,
+          total: o.totalAmount,
+          paymentMethod: "Tiền mặt",
+          createdAt: o.orderDate,
+          status: o.status,
+        };
+        setSelectedOrder(mappedOrder);
+        setIsDetailDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Lấy chi tiết đơn hàng thất bại:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Quản Lý Đơn Hàng</h1>
-        <p className="text-muted-foreground">Xem và quản lý đơn hàng</p>
+        <p className="text-muted-foreground">Xem và quản lý danh sách đơn hàng</p>
       </div>
 
       <Card className="border-2 border-border">
@@ -48,65 +143,90 @@ export default function OrdersPage() {
             />
           </div>
         </CardHeader>
+
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow className="border-b-2 border-border">
-                <TableHead className="font-bold">Mã đơn</TableHead>
-                <TableHead className="font-bold">Khách hàng</TableHead>
-                <TableHead className="font-bold">Nhân viên</TableHead>
-                <TableHead className="font-bold">Số lượng</TableHead>
-                <TableHead className="font-bold text-right">Tổng tiền</TableHead>
-                <TableHead className="font-bold">Trạng thái</TableHead>
-                <TableHead className="font-bold">Ngày tạo</TableHead>
-                <TableHead className="font-bold text-right">Thao tác</TableHead>
+                <TableHead>Mã đơn</TableHead>
+                <TableHead>Khách hàng</TableHead>
+                <TableHead>Nhân viên</TableHead>
+                <TableHead className="text-center">Số lượng</TableHead>
+                <TableHead>Tổng tiền</TableHead>
+                <TableHead>Trạng thái</TableHead>
+                <TableHead>Ngày tạo</TableHead>
+                <TableHead>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="border-b border-border">
-                  <TableCell className="font-medium font-mono">{order.id}</TableCell>
-                  <TableCell>{order.customerName}</TableCell>
-                  <TableCell>{order.staffName}</TableCell>
-                  <TableCell>{order.items.length} sản phẩm</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(order.total)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={order.status === "completed" ? "default" : "destructive"}
-                      className="border-2 border-border"
-                    >
-                      {order.status === "completed" ? "Hoàn thành" : order.status === "refunded" ? "Đã hoàn" : "Hủy"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{new Date(order.createdAt).toLocaleDateString("vi-VN")}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => openDetailDialog(order)}
-                      className="border-2 border-border"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono">{o.id}</TableCell>
+                    <TableCell>{o.customerName}</TableCell>
+                    <TableCell>{o.staffName}</TableCell>
+                    <TableCell className="text-center">{o.items.length}</TableCell>
+                    <TableCell className="font-semibold">
+                      {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                      }).format(o.total)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          o.status === "paid"
+                            ? "default"
+                            : o.status === "pending"
+                            ? "secondary"
+                            : "destructive"
+                        }
+                      >
+                        {o.status === "paid"
+                          ? "Đã thanh toán"
+                          : o.status === "pending"
+                          ? "Chờ xử lý"
+                          : "Đã hủy"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(o.createdAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => openDetailDialog(o.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6">
+                    Không có đơn hàng nào.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Order Detail Dialog */}
+      {/* ===== Modal chi tiết ===== */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="border-2 border-border max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Chi tiết đơn hàng {selectedOrder?.id}</DialogTitle>
-            <DialogDescription>Thông tin chi tiết về đơn hàng</DialogDescription>
+            <DialogTitle>Chi tiết đơn hàng #{selectedOrder?.id}</DialogTitle>
+            <DialogDescription>Thông tin chi tiết đơn hàng</DialogDescription>
           </DialogHeader>
+
           {selectedOrder && (
             <div className="space-y-4">
+              {/* Thông tin khách hàng & nhân viên */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Khách hàng</p>
@@ -117,57 +237,81 @@ export default function OrdersPage() {
                   <p className="font-medium">{selectedOrder.staffName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Phương thức thanh toán</p>
-                  <p className="font-medium capitalize">{selectedOrder.paymentMethod}</p>
+                  <p className="text-sm text-muted-foreground">Thanh toán</p>
+                  <p className="font-medium">{selectedOrder.paymentMethod}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Ngày tạo</p>
-                  <p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString("vi-VN")}</p>
+                  <p className="font-medium">
+                    {new Date(selectedOrder.createdAt).toLocaleString("vi-VN")}
+                  </p>
                 </div>
               </div>
-              <div className="border-t-2 border-border pt-4">
+
+              {/* Danh sách sản phẩm */}
+              <div className="border-t border-border pt-4">
                 <p className="font-semibold mb-2">Sản phẩm</p>
-                <div className="space-y-2">
-                  {selectedOrder.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center border-b border-border pb-2">
-                      <div>
-                        <p className="font-medium">{item.productName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.price)} x{" "}
-                          {item.quantity}
-                        </p>
-                      </div>
-                      <p className="font-semibold">
-                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.subtotal)}
+                {selectedOrder.items.map((i, idx) => (
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center border-b border-border py-2"
+                  >
+                    <div>
+                      <p className="font-medium">{i.productName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {i.quantity} x{" "}
+                        {new Intl.NumberFormat("vi-VN", {
+                          style: "currency",
+                          currency: "VND",
+                        }).format(i.price)}
                       </p>
                     </div>
-                  ))}
-                </div>
+                    <p className="font-semibold">
+                      {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                      }).format(i.subtotal)}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="border-t-2 border-border pt-4 space-y-2">
+
+              {/* Tổng tiền */}
+              <div className="border-t border-border pt-4 space-y-2">
                 <div className="flex justify-between">
                   <p>Tạm tính</p>
                   <p>
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                      selectedOrder.subtotal,
-                    )}
+                    {new Intl.NumberFormat("vi-VN", {
+                      style: "currency",
+                      currency: "VND",
+                    }).format(selectedOrder.total + selectedOrder.discount)}
                   </p>
                 </div>
+
                 {selectedOrder.discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <p>Giảm giá {selectedOrder.promotionCode && `(${selectedOrder.promotionCode})`}</p>
+                    <p>
+                      Giảm giá{" "}
+                      {selectedOrder.promotionCode &&
+                        `(${selectedOrder.promotionCode})`}
+                    </p>
                     <p>
                       -
-                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                        selectedOrder.discount,
-                      )}
+                      {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                      }).format(selectedOrder.discount)}
                     </p>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold border-t-2 border-border pt-2">
+
+                <div className="flex justify-between font-bold border-t border-border pt-2 text-lg">
                   <p>Tổng cộng</p>
                   <p>
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedOrder.total)}
+                    {new Intl.NumberFormat("vi-VN", {
+                      style: "currency",
+                      currency: "VND",
+                    }).format(selectedOrder.total)}
                   </p>
                 </div>
               </div>
@@ -176,5 +320,5 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
