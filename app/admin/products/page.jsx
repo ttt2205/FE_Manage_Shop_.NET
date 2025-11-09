@@ -1,114 +1,245 @@
-"use client"
+"use client";
+import { useEffect, useState } from "react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Container, Card, Button, Form, Table, Badge, Modal } from "react-bootstrap";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-import { useState } from "react"
-import { Plus, Search, Edit, Trash2 } from "lucide-react"
-import { Container, Card, Button, Form, Table, Modal, Badge } from "react-bootstrap"
-import { productsData } from "@/lib/data/products"
-
-const categories = ["Tất cả", "Áo Nam", "Quần Nữ", "Váy Nữ", "Giày Nam", "Phụ Kiện"]
+import productService from "@/service/productService";
+import categoryService from "@/service/categoryService";
+import supplierService from "@/service/supplierService";
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState(productsData)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("Tất cả")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("Tất cả");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+
   const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    category: "",
+    productName: "",
+    barcode: "",
     price: "",
-    stock: "",
-    description: "",
-  })
+    unit: "",
+    categoryId: "",
+    supplierId: "",
+  });
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "Tất cả" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
-
-  const handleAdd = () => {
-    const newProduct = {
-      id: `PRD${String(products.length + 1).padStart(3, "0")}`,
-      name: formData.name,
-      sku: formData.sku,
-      category: formData.category,
-      price: Number(formData.price),
-      stock: Number(formData.stock),
-      image: "/placeholder.svg?height=100&width=100",
-      description: formData.description,
-      createdAt: new Date().toISOString(),
+  // 🧩 Gọi API danh sách sản phẩm, danh mục, nhà cung cấp
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch {
+      toast.error("❌ Lỗi khi tải danh sách sản phẩm!");
+    } finally {
+      setLoading(false);
     }
-    setProducts([...products, newProduct])
-    setIsAddDialogOpen(false)
-    setFormData({ name: "", sku: "", category: "", price: "", stock: "", description: "" })
-  }
+  };
 
-  const handleEdit = () => {
-    if (!selectedProduct) return
-    setProducts(
-      products.map((p) =>
-        p.id === selectedProduct.id
-          ? {
-              ...p,
-              name: formData.name,
-              sku: formData.sku,
-              category: formData.category,
-              price: Number(formData.price),
-              stock: Number(formData.stock),
-              description: formData.description,
-            }
-          : p,
-      ),
-    )
-    setIsEditDialogOpen(false)
-    setSelectedProduct(null)
-    setFormData({ name: "", sku: "", category: "", price: "", stock: "", description: "" })
-  }
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getCategories();
+      setCategories(data);
+    } catch {
+      toast.error("❌ Lỗi khi tải danh mục!");
+    }
+  };
 
-  const handleDelete = () => {
-    if (!selectedProduct) return
-    setProducts(products.filter((p) => p.id !== selectedProduct.id))
-    setIsDeleteDialogOpen(false)
-    setSelectedProduct(null)
-  }
+  const fetchSuppliers = async () => {
+    try {
+      const data = await supplierService.getSuppliers();
+      setSuppliers(data);
+    } catch {
+      toast.error("❌ Lỗi khi tải nhà cung cấp!");
+    }
+  };
 
-  const openEditDialog = (product) => {
-    setSelectedProduct(product)
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+    fetchSuppliers();
+  }, []);
+
+  // 🧩 Lọc sản phẩm theo danh mục và tìm kiếm
+  const filteredProducts = products.filter((product) => {
+    const name = product.productName?.toLowerCase() || "";
+    const barcode = product.barcode?.toLowerCase() || "";
+    const matchesSearch =
+      name.includes(searchTerm.toLowerCase()) || barcode.includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "Tất cả" ||
+      (product.category?.categoryName && product.category.categoryName === categoryFilter);
+    return matchesSearch && matchesCategory;
+  });
+
+  // 🧩 Validate form
+  const validateForm = () => {
+    const { productName, barcode, price, unit, categoryId, supplierId } = formData;
+    if (!productName.trim()) return toast.warning("⚠️ Tên sản phẩm không được để trống!");
+    if (!barcode.trim()) return toast.warning("⚠️ Mã vạch không được để trống!");
+    if (!price || isNaN(price) || parseFloat(price) <= 0)
+      return toast.warning("⚠️ Giá sản phẩm phải lớn hơn 0!");
+    if (!unit.trim()) return toast.warning("⚠️ Vui lòng nhập đơn vị sản phẩm!");
+    if (!categoryId) return toast.warning("⚠️ Vui lòng chọn danh mục!");
+    if (!supplierId) return toast.warning("⚠️ Vui lòng chọn nhà cung cấp!");
+    return true;
+  };
+
+  // 🧩 Xử lý thêm sản phẩm
+  const handleAdd = async () => {
+    if (!validateForm()) return;
+
+    const payload = {
+      ProductName: formData.productName,
+      Barcode: formData.barcode,
+      Price: parseFloat(formData.price),
+      Unit: formData.unit,
+      CategoryId: parseInt(formData.categoryId),
+      SupplierId: parseInt(formData.supplierId),
+    };
+
+    try {
+      setLoading(true);
+      const res = await productService.createProduct(payload);
+
+      if (res.statusCode === 200 || res.status === 201) {
+        toast.success("🎉 Thêm sản phẩm thành công!");
+        setIsAddDialogOpen(false);
+        setFormData({
+          productName: "",
+          barcode: "",
+          price: "",
+          unit: "",
+          categoryId: "",
+          supplierId: "",
+        });
+        fetchProducts();
+      } else {
+        toast.error("❌ Thêm sản phẩm thất bại!");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi thêm sản phẩm:", err);
+      toast.error("Lỗi server hoặc dữ liệu không hợp lệ!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🧩 Mở modal Edit
+  const openEditModal = (product) => {
+    setEditingProduct(product);
     setFormData({
-      name: product.name,
-      sku: product.sku,
-      category: product.category,
-      price: String(product.price),
-      stock: String(product.stock),
-      description: product.description,
-    })
-    setIsEditDialogOpen(true)
-  }
+      productName: product.productName,
+      barcode: product.barcode,
+      price: product.price,
+      unit: product.unit,
+      categoryId: product.category?.id || "",
+      supplierId: product.supplier?.id || "",
+    });
+    setIsEditDialogOpen(true);
+  };
 
-  const openDeleteDialog = (product) => {
-    setSelectedProduct(product)
-    setIsDeleteDialogOpen(true)
-  }
+  // 🧩 Xử lý cập nhật sản phẩm
+  const handleEdit = async () => {
+    if (!editingProduct) return;
+    if (!validateForm()) return;
+
+    const payload = {
+      ProductName: formData.productName,
+      Barcode: formData.barcode,
+      Price: parseFloat(formData.price),
+      Unit: formData.unit,
+      CategoryId: parseInt(formData.categoryId),
+      SupplierId: parseInt(formData.supplierId),
+    };
+
+    try {
+      setLoading(true);
+      const res = await productService.updateProduct(editingProduct.id, payload);
+      if (res.statusCode === 200 || res.status === 200) {
+        toast.success("✅ Cập nhật sản phẩm thành công!");
+        setIsEditDialogOpen(false);
+        fetchProducts();
+      } else {
+        toast.error("❌ Cập nhật thất bại!");
+      }
+    } catch (err) {
+      toast.error("❌ Lỗi khi cập nhật sản phẩm!");
+    }
+    finally {
+      setLoading(false);
+    }
+  };
+
+  // 🧩 Mở modal delete
+  const openDeleteModal = (product) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
+  // 🧩 Xử lý xoá sản phẩm
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    try {
+      setLoading(true);
+      const res = await productService.deleteProduct(selectedProduct.id);
+      if (res.statusCode === 200 || res.status === 200) {
+        toast.success(`🗑️ Đã xoá sản phẩm "${selectedProduct.productName}"`);
+        fetchProducts();
+      } else {
+        toast.error("❌ Xóa sản phẩm thất bại!");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi xóa:", error);
+      toast.error("Lỗi server khi xóa sản phẩm!");
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
+      setLoading(false);
+    }
+  };
+
+  const columns = ["Mã SP", "Tên Sản phẩm", "Mã vạch", "Danh mục", "Giá", "Đơn vị", "Thao tác"];
 
   return (
     <Container fluid className="py-4">
+      <ToastContainer position="top-right" autoClose={2000} />
+
+      {/* Header */}
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h1 className="display-6 fw-bold">Quản Lý Sản Phẩm</h1>
           <p className="text-muted">Quản lý kho hàng và sản phẩm</p>
         </div>
-        <Button variant="primary" onClick={() => setIsAddDialogOpen(true)} className="d-flex align-items-center gap-2">
+        <Button
+          variant="primary"
+          onClick={() => {
+            setFormData({
+              productName: "",
+              barcode: "",
+              price: "",
+              unit: "",
+              categoryId: "",
+              supplierId: "",
+            });
+            setIsAddDialogOpen(true);
+          }}
+          className="d-flex align-items-center gap-2"
+        >
           <Plus size={18} />
           Thêm sản phẩm
         </Button>
       </div>
 
+      {/* Bộ lọc */}
       <Card className="mb-4">
         <Card.Header className="bg-light">
           <Card.Title className="mb-3">Danh sách sản phẩm</Card.Title>
@@ -119,7 +250,7 @@ export default function ProductsPage() {
                   <Search size={18} />
                 </span>
                 <Form.Control
-                  placeholder="Tìm kiếm theo tên, SKU..."
+                  placeholder="Tìm kiếm theo tên, mã vạch..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -127,253 +258,224 @@ export default function ProductsPage() {
             </div>
             <div className="col-md-4">
               <Form.Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="Tất cả">Tất cả</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                  <option key={cat.id} value={cat.categoryName}>
+                    {cat.categoryName}
                   </option>
                 ))}
               </Form.Select>
             </div>
           </div>
         </Card.Header>
+
+        {/* Bảng sản phẩm */}
         <Card.Body className="p-0">
           <Table hover responsive className="mb-0">
             <thead className="table-light">
               <tr>
-                <th>Mã SP</th>
-                <th>Tên sản phẩm</th>
-                <th>SKU</th>
-                <th>Danh mục</th>
-                <th className="text-end">Giá</th>
-                <th className="text-end">Tồn kho</th>
-                <th className="text-end">Thao tác</th>
+                {columns.map((item, index) => (
+                  <th className="text-center" key={index}>
+                    {item}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => (
-                <tr key={product.id}>
-                  <td className="fw-medium">{product.id}</td>
-                  <td>{product.name}</td>
-                  <td>{product.sku}</td>
-                  <td>
-                    <Badge bg="light" text="dark">
-                      {product.category}
-                    </Badge>
-                  </td>
-                  <td className="text-end">
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.price)}
-                  </td>
-                  <td className="text-end">
-                    <span className={product.stock < 50 ? "text-warning fw-semibold" : ""}>{product.stock}</span>
-                  </td>
-                  <td className="text-end">
-                    <div className="d-flex justify-content-end gap-2">
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        onClick={() => openEditDialog(product)}
-                        className="p-2"
-                      >
-                        <Edit size={16} />
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => openDeleteDialog(product)}
-                        className="p-2"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <tr key={product.id}>
+                    <td className="fw-medium text-center">{product.id}</td>
+                    <td className="text-center">{product.productName}</td>
+                    <td className="text-center">{product.barcode}</td>
+                    <td className="text-center">
+                      <Badge bg="light" text="dark">
+                        {product.category?.categoryName || "Không có"}
+                      </Badge>
+                    </td>
+                    <td className="text-center">
+                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                        product.price || 0
+                      )}
+                    </td>
+                    <td className="text-center">{product.unit || "N/A"}</td>
+                    <td className="text-center">
+                      <div className="d-flex justify-content-center gap-2">
+                        <Button variant="outline-secondary" size="sm" onClick={() => openEditModal(product)}>
+                          <Edit size={16} />
+                        </Button>
+                        <Button variant="outline-danger" size="sm" className="p-2" onClick={() => openDeleteModal(product)}>
+                          <Trash2 size={16} />
+                        </Button>
+
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center">
+                    {loading ? "Đang tải..." : "Không có sản phẩm nào"}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </Table>
         </Card.Body>
       </Card>
 
-      {/* Add Modal */}
-      <Modal show={isAddDialogOpen} onHide={() => setIsAddDialogOpen(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Thêm sản phẩm mới</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="row">
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Tên sản phẩm</Form.Label>
-                <Form.Control
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>SKU</Form.Label>
-                <Form.Control
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Danh mục</Form.Label>
-                <Form.Select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                >
-                  <option value="">Chọn danh mục</option>
-                  {categories
-                    .filter((c) => c !== "Tất cả")
-                    .map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Giá</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <Form.Group className="mb-3">
-            <Form.Label>Số lượng tồn kho</Form.Label>
-            <Form.Control
-              type="number"
-              value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-            />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Mô tả</Form.Label>
-            <Form.Control
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsAddDialogOpen(false)}>
-            Hủy
-          </Button>
-          <Button variant="primary" onClick={handleAdd}>
-            Thêm
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* 🔹 Modal thêm sản phẩm */}
+      <ProductModal
+        title="Thêm sản phẩm mới"
+        show={isAddDialogOpen}
+        onHide={() => setIsAddDialogOpen(false)}
+        formData={formData}
+        setFormData={setFormData}
+        categories={categories}
+        suppliers={suppliers}
+        loading={loading}
+        onSubmit={handleAdd}
+        buttonLabel="Thêm sản phẩm"
+      />
 
-      {/* Edit Modal */}
-      <Modal show={isEditDialogOpen} onHide={() => setIsEditDialogOpen(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Chỉnh sửa sản phẩm</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="row">
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Tên sản phẩm</Form.Label>
-                <Form.Control
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>SKU</Form.Label>
-                <Form.Control
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Danh mục</Form.Label>
-                <Form.Select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                >
-                  <option value="">Chọn danh mục</option>
-                  {categories
-                    .filter((c) => c !== "Tất cả")
-                    .map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-md-6">
-              <Form.Group className="mb-3">
-                <Form.Label>Giá</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <Form.Group className="mb-3">
-            <Form.Label>Số lượng tồn kho</Form.Label>
-            <Form.Control
-              type="number"
-              value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-            />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>Mô tả</Form.Label>
-            <Form.Control
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsEditDialogOpen(false)}>
-            Hủy
-          </Button>
-          <Button variant="primary" onClick={handleEdit}>
-            Lưu thay đổi
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Delete Modal */}
-      <Modal show={isDeleteDialogOpen} onHide={() => setIsDeleteDialogOpen(false)}>
+      {/* 🔹 Modal chỉnh sửa sản phẩm */}
+      <ProductModal
+        title="Chỉnh sửa sản phẩm"
+        show={isEditDialogOpen}
+        onHide={() => setIsEditDialogOpen(false)}
+        formData={formData}
+        setFormData={setFormData}
+        categories={categories}
+        suppliers={suppliers}
+        loading={loading}
+        onSubmit={handleEdit}
+        buttonLabel="Lưu thay đổi"
+      />
+      <Modal show={isDeleteDialogOpen} onHide={() => setIsDeleteDialogOpen(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Xác nhận xóa</Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
-          Bạn có chắc chắn muốn xóa sản phẩm <strong>{selectedProduct?.name}</strong>? Hành động này không thể hoàn tác.
+          {selectedProduct ? (
+            <>
+              Bạn có chắc chắn muốn xóa sản phẩm{" "}
+              <strong className="text-danger">{selectedProduct.productName}</strong>?
+              <br />
+              <small className="text-muted">Hành động này không thể hoàn tác.</small>
+            </>
+          ) : (
+            "Không có sản phẩm nào được chọn."
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setIsDeleteDialogOpen(false)}>
             Hủy
           </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Xóa
+          <Button variant="danger" onClick={handleDelete} disabled={loading}>
+            {loading ? "Đang xóa..." : "Xóa"}
           </Button>
         </Modal.Footer>
       </Modal>
+
     </Container>
-  )
+  );
+}
+
+function ProductModal({
+  title,
+  show,
+  onHide,
+  formData,
+  setFormData,
+  categories,
+  suppliers,
+  onSubmit,
+  buttonLabel,
+  loading,
+}) {
+  return (
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>{title}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>Tên sản phẩm</Form.Label>
+            <Form.Control
+              value={formData.productName}
+              onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Mã vạch</Form.Label>
+            <Form.Control
+              value={formData.barcode}
+              onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Giá</Form.Label>
+            <Form.Control
+              type="number"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Đơn vị</Form.Label>
+            <Form.Control
+              value={formData.unit}
+              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Danh mục</Form.Label>
+            <Form.Select
+              value={formData.categoryId}
+              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+            >
+              <option value="">Chọn danh mục</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.categoryName}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Nhà cung cấp</Form.Label>
+            <Form.Select
+              value={formData.supplierId}
+              onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+            >
+              <option value="">Chọn nhà cung cấp</option>
+              {[
+                { id: 1, name: "Công ty Vinamilk" },
+                { id: 2, name: "Công ty Trung Nguyên" },
+                { id: 3, name: "Công ty TH True Milk" },
+                { id: 4, name: "Công ty Nestlé Việt Nam" },
+              ].map((sup) => (
+                <option key={sup.id} value={sup.id}>
+                  {sup.name}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+
+
+
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Hủy
+        </Button>
+        <Button variant="primary" onClick={onSubmit} disabled={loading}>
+          {loading ? "Đang xử lý..." : buttonLabel}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
 }
