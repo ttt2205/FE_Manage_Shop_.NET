@@ -2,49 +2,19 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Package, Tag, ShoppingCart, UserCog, BarChart3, Receipt } from "lucide-react"
+import { LayoutDashboard, Users, Package, Tag, ShoppingCart, UserCog, BarChart3, Receipt, Truck, Warehouse } from "lucide-react"
 
 const menuItems = [
-  {
-    title: "Tổng quan",
-    href: "/admin",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Khách hàng",
-    href: "/admin/customers",
-    icon: Users,
-  },
-  {
-    title: "Sản phẩm",
-    href: "/admin/products",
-    icon: Package,
-  },
-  {
-    title: "Khuyến mãi",
-    href: "/admin/promotions",
-    icon: Tag,
-  },
-  {
-    title: "Đơn hàng",
-    href: "/admin/orders",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Nhân viên",
-    href: "/admin/staff",
-    icon: UserCog,
-  },
-  {
-    title: "Thống kê",
-    href: "/admin/statistics",
-    icon: BarChart3,
-  },
-  {
-    title: "Hóa đơn",
-    href: "/admin/invoices",
-    icon: Receipt,
-  },
+  { title: "Tổng quan", href: "/admin", icon: LayoutDashboard },
+  { title: "Khách hàng", href: "/admin/customers", icon: Users },
+  { title: "Nhà cung cấp", href: "/admin/suppliers", icon: Truck }, // THÊM DÒ NÀY
+  { title: "Sản phẩm", href: "/admin/products", icon: Package },
+  { title: "Tồn kho", href: "/admin/inventory", icon: Warehouse }, // THÊM DÒNG NÀY
+  { title: "Khuyến mãi", href: "/admin/promotions", icon: Tag },
+  { title: "Đơn hàng", href: "/admin/orders", icon: ShoppingCart },
+  { title: "Nhân viên", href: "/admin/staff", icon: UserCog },
+  { title: "Thống kê", href: "/admin/statistics", icon: BarChart3 },
+  { title: "Hóa đơn", href: "/admin/invoices", icon: Receipt },
 ]
 
 export function AdminSidebar() {
