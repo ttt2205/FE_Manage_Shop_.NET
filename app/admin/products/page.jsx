@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { Container, Card, Button, Form, Table, Badge, Modal } from "react-bootstrap";
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+
 
 import productService from "@/service/productService";
 import categoryService from "@/service/categoryService";

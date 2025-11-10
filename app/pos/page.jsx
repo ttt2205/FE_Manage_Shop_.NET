@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ShoppingCart, Users, Tag, History, Plus, Minus, Trash2, Search, Package, LogOut, User } from "lucide-react"
 import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown } from "react-bootstrap"
 import { productsData } from "@/lib/data/products"
@@ -8,6 +8,9 @@ import { customersData } from "@/lib/data/customers"
 import { promotionsData } from "@/lib/data/promotions"
 import { ordersData } from "@/lib/data/orders"
 import { getCurrentUser, logout } from "@/lib/auth"
+import { toast, ToastContainer } from "react-toastify";
+import productService from "@/service/productService";
+import categoryService from "@/service/categoryService";
 
 export default function POSPage() {
   const currentUser = getCurrentUser()
@@ -22,6 +25,10 @@ export default function POSPage() {
   const [isPromotionDialogOpen, setIsPromotionDialogOpen] = useState(false)
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("cash")
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+   const [loading, setLoading] = useState(false);
+
   const [newCustomerData, setNewCustomerData] = useState({
     name: "",
     email: "",
@@ -29,13 +36,47 @@ export default function POSPage() {
     address: "",
   })
 
-  const categories = ["Tất cả", "Áo Nam", "Quần Nữ", "Váy Nữ", "Giày Nam", "Phụ Kiện"]
+  // 🧩 Lọc sản phẩm theo danh mục và tìm kiếm
+  const filteredProducts = products.filter((product) => {
+    const name = product.productName?.toLowerCase() || "";
+    const barcode = product.barcode?.toLowerCase() || "";
+    const matchesSearch =
+      name.includes(searchTerm.toLowerCase()) || barcode.includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      categoryFilter === "Tất cả" ||
+      (product.category?.categoryName && product.category.categoryName === categoryFilter);
+    return matchesSearch && matchesCategory;
+  });
+  // 🧩 Gọi API danh sách sản phẩm, danh mục, nhà cung cấp
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await productService.getProducts();
+      setProducts(data);
+    } catch {
+      toast.error("❌ Lỗi khi tải danh sách sản phẩm!");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredProducts = productsData.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "Tất cả" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getCategories();
+      setCategories(data);
+    } catch {
+      toast.error("❌ Lỗi khi tải danh mục!");
+    }
+  };
+
+    useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+
+
 
   const addToCart = (product) => {
     const existingItem = cart.find((item) => item.product.id === product.id)
@@ -122,6 +163,7 @@ export default function POSPage() {
 
   return (
     <div className="d-flex" style={{ height: "100vh", backgroundColor: "#f8f9fa" }}>
+       <ToastContainer position="top-right" autoClose={2000} />
       {/* Sidebar */}
       <div
         className="d-flex flex-column align-items-center py-4 gap-3"
@@ -218,8 +260,8 @@ export default function POSPage() {
                     <Col md={4}>
                       <Form.Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
                         {categories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
+                          <option key={cat.id} value={cat.id}>
+                            {cat.categoryName}
                           </option>
                         ))}
                       </Form.Select>
@@ -245,9 +287,9 @@ export default function POSPage() {
                               className="card-title small mb-1"
                               style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                             >
-                              {product.name}
+                              {product.productName}
                             </h6>
-                            <p className="text-muted small mb-2">{product.category}</p>
+                            <p className="text-muted small mb-2">{product.categoryName}</p>
                             <div className="d-flex justify-content-between align-items-center">
                               <strong className="small">
                                 {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
@@ -255,7 +297,7 @@ export default function POSPage() {
                                 )}
                               </strong>
                               <Badge bg="light" text="dark" className="small">
-                                {product.stock}
+                                {product.unit}
                               </Badge>
                             </div>
                           </Card.Body>
@@ -339,7 +381,7 @@ export default function POSPage() {
                           <Card.Body className="p-3">
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div className="flex-grow-1">
-                                <p className="fw-medium small mb-1">{item.product.name}</p>
+                                <p className="fw-medium small mb-1">{item.product.productName}</p>
                                 <p className="text-muted small mb-0">
                                   {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
                                     item.product.price,
@@ -504,8 +546,8 @@ export default function POSPage() {
                                   {promotion.discountType === "percentage"
                                     ? `${promotion.discountValue}%`
                                     : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                        promotion.discountValue,
-                                      )}
+                                      promotion.discountValue,
+                                    )}
                                 </p>
                               </div>
                               <Badge bg="light" text="dark" className="small">
@@ -697,8 +739,8 @@ export default function POSPage() {
                         {promotion.discountType === "percentage"
                           ? `${promotion.discountValue}%`
                           : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                              promotion.discountValue,
-                            )}
+                            promotion.discountValue,
+                          )}
                       </p>
                       <p className="text-muted small mb-0">
                         Đơn tối thiểu:{" "}
