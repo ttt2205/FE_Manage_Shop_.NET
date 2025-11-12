@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { ShoppingCart, Users, Tag, History, Plus, Minus, Trash2, Search, Package, LogOut, User } from "lucide-react"
 import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown } from "react-bootstrap"
 import { customersData } from "@/lib/data/customers"
-import { ordersData } from "@/lib/data/orders"
+import jsPDF from "jspdf";
 import { getCurrentUser, logout } from "@/lib/auth"
 import { toast, ToastContainer } from "react-toastify";
 import productService from "@/service/productService";
@@ -24,6 +24,7 @@ export default function POSPage() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [promotions, setPromotions] = useState([])
+  const [orders, setOrders] = useState([])
 
   // Cart & Customer & Promotion
   const [cart, setCart] = useState([])
@@ -84,10 +85,24 @@ export default function POSPage() {
     }
   }
 
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const data = await orderService.getOrdersByUser(1)
+      setOrders(data)
+    } catch {
+      toast.error("❌ Lỗi khi tải danh sách lịch sử mua hàng!")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   useEffect(() => {
     fetchProducts()
     fetchCategories()
     fetchPromotions()
+    fetchOrders()
   }, [])
 
   // ===================== CART LOGIC =====================
@@ -118,45 +133,37 @@ export default function POSPage() {
     setSelectedPromotion(null)
   }
 
-  // ===================== TÍNH TỔNG TIỀN =====================
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
 
-  // ===================== TÍNH KHUYẾN MÃI =====================
+  const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+
   const calculateDiscount = () => {
     if (!selectedPromotion || selectedPromotion.status !== "active") return 0;
+    if (subtotal < (selectedPromotion.minOrderAmount || 0)) return 0;
 
-    const { discountType, discountValue } = selectedPromotion;
-    const type = discountType?.toLowerCase();
+    let discount = 0;
+    const type = selectedPromotion.discountType?.toLowerCase();
 
     if (type === "percent") {
-      return (subtotal * discountValue) / 100;
+      discount = (subtotal * selectedPromotion.discountValue) / 100;
+    } else if (type === "fixed") {
+      discount = selectedPromotion.discountValue || 0;
     }
-
-    if (type === "fixed") {
-      return discountValue || 0;
-    }
-
-    return 0;
+    return discount;
   };
 
-  const discount = calculateDiscount();
-  const total = subtotal - discount;
+  const discount = calculateDiscount()
+  const total = subtotal - discount
 
   // ===================== CHECKOUT =====================
   const handleCheckout = async () => {
-    // Nếu cần bắt buộc chọn khách hàng:
     // if (!selectedCustomer) {
-    //   toast.warning("Vui lòng chọn khách hàng!");
-    //   return;
+    //   toast.warning("Vui lòng chọn khách hàng!")
+    //   return
     // }
-
     const orderData = {
       customerId: 1,
       userId: 1,
-      promotionId: selectedPromotion?.id || null,
+      promotionId: selectedPromotion ? selectedPromotion.id : null,
       status: "pending",
       totalAmount: total,
       discountAmount: discount,
@@ -166,37 +173,33 @@ export default function POSPage() {
         price: item.product.price,
         subtotal: item.product.price * item.quantity,
       })),
-    };
+    }
 
     try {
-      // ====== Tạo đơn hàng ======
+      // Tạo order
       const response = await orderService.createOrder(orderData);
-      const createdOrder = response.data;
+      const createdOrder = response.data; // backend trả data bên trong field "data"
 
       if (!createdOrder?.id) {
         toast.error("Không tạo được đơn hàng!");
         return;
       }
 
-      // ====== Tạo thanh toán ======
+      // Tạo payment
       await paymentService.createPayment({
         orderId: Number(createdOrder.id),
-        paymentMethod, // tên key nên viết thường theo camelCase
-      });
+        PaymentMethod: paymentMethod,
+      })
 
-      toast.success("Tạo đơn hàng và thanh toán thành công!");
-      clearCart();
-      setIsCheckoutDialogOpen(false);
+      generateInvoicePDF(createdOrder, cart);
+      toast.success("Tạo đơn hàng và thanh toán thành công!")
+      clearCart()
+      setIsCheckoutDialogOpen(false)
     } catch (error) {
-      console.error(error);
-      toast.error(
-        error?.response?.data?.message ||
-        error.message ||
-        "Không thể tạo đơn hàng hoặc thanh toán."
-      );
+      console.error(error)
+      toast.error(error?.response?.data?.message || error.message || "Không thể tạo đơn hàng hoặc thanh toán.")
     }
-  };
-
+  }
 
   // ===================== ADD CUSTOMER =====================
   const handleAddCustomer = () => {
@@ -227,6 +230,43 @@ export default function POSPage() {
       (product.category?.categoryName && product.category.categoryName === categoryFilter)
     return matchesSearch && matchesCategory
   })
+
+
+
+  const generateInvoicePDF = (order, cart) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("HÓA ĐƠN THANH TOÁN", 105, 20, { align: "center" });
+
+    doc.setFontSize(12);
+    doc.text(`Mã đơn hàng: ${order.id}`, 20, 40);
+    doc.text(`Khách hàng: ${order.customerName || "Khách lẻ"}`, 20, 50);
+    doc.text(`Ngày: ${new Date(order.orderDate).toLocaleString()}`, 20, 60);
+
+    // Tiêu đề bảng
+    doc.text("STT", 20, 80);
+    doc.text("Sản phẩm", 40, 80);
+    doc.text("SL", 120, 80);
+    doc.text("Đơn giá", 140, 80);
+    doc.text("Thành tiền", 180, 80);
+
+    let y = 90;
+    cart.forEach((item, index) => {
+      doc.text(`${index + 1}`, 20, y);
+      doc.text(`${item.product.name}`, 40, y);
+      doc.text(`${item.quantity}`, 120, y);
+      doc.text(`${item.product.price}`, 140, y);
+      doc.text(`${item.product.price * item.quantity}`, 180, y);
+      y += 10;
+    });
+
+    doc.text(`Tổng: ${order.totalAmount + order.discountAmount}`, 140, y + 10);
+    doc.text(`Giảm giá: ${order.discountAmount}`, 140, y + 20);
+    doc.text(`Thanh toán: ${order.totalAmount}`, 140, y + 30);
+
+    doc.save(`invoice_order_${order.id}.pdf`);
+  };
+
 
   return (
     <div className="d-flex" style={{ height: "100vh", backgroundColor: "#f8f9fa" }}>
@@ -424,10 +464,16 @@ export default function POSPage() {
                           {selectedPromotion ? "Đổi" : "Chọn"}
                         </Button>
                       </div>
+
                       {selectedPromotion ? (
                         <div className="small">
                           <p className="fw-medium mb-1 font-monospace">{selectedPromotion.promoCode}</p>
-                          <p className="text-muted mb-0">{selectedPromotion.description}</p>
+                          <p className="text-muted mb-1">{selectedPromotion.description}</p>
+                          {subtotal < (selectedPromotion.minOrderAmount || 0) && (
+                            <p className="text-danger small mb-0">
+                              Chưa đủ điều kiện (tối thiểu {selectedPromotion.minOrderAmount}₫)
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <p className="small text-muted mb-0">Không có</p>
@@ -639,30 +685,44 @@ export default function POSPage() {
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="space-y-2 p-3">
-                    {ordersData.map((order) => (
+                    {orders.map((order) => (
                       <Card key={order.id} className="mb-2">
                         <Card.Body className="p-3">
                           <div className="d-flex justify-content-between align-items-start mb-2">
                             <div>
                               <p className="fw-medium small font-monospace mb-1">{order.id}</p>
-                              <p className="text-muted small mb-1">{order.customerName}</p>
+                              <p className="text-muted small mb-1">{order.customer.name}</p>
                               <p className="text-muted small mb-0">
-                                {new Date(order.createdAt).toLocaleString("vi-VN")}
+                                {new Date(order.orderDate).toLocaleString("vi-VN")}
                               </p>
                             </div>
                             <div className="text-end">
                               <p className="fw-bold small mb-1">
                                 {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                  order.total,
+                                  order.totalAmount,
                                 )}
                               </p>
-                              <Badge bg={order.status === "completed" ? "success" : "danger"} className="small">
-                                {order.status === "completed"
+                              <Badge
+                                bg={
+                                  order.status === "paid"
+                                    ? "success"
+                                    : order.status === "refunded"
+                                      ? "info"
+                                      : order.status === "pending"
+                                        ? "warning"
+                                        : "danger"
+                                }
+                                className="small"
+                              >
+                                {order.status === "paid"
                                   ? "Hoàn thành"
                                   : order.status === "refunded"
                                     ? "Đã hoàn"
-                                    : "Hủy"}
+                                    : order.status === "pending"
+                                      ? "Đang chờ"
+                                      : "Hủy"}
                               </Badge>
+
                             </div>
                           </div>
                           <p className="text-muted small mb-0">
