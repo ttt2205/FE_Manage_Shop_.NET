@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Package, Tag, ShoppingCart, UserCog, BarChart3, Receipt } from "lucide-react"
+import { LayoutDashboard, Users, Package, Tag, ShoppingCart, UserCog, BarChart3, Receipt, Boxes} from "lucide-react"
 
 const menuItems = [
   {
@@ -45,6 +45,11 @@ const menuItems = [
     href: "/admin/invoices",
     icon: Receipt,
   },
+{
+    title: "Kho tổng",
+    href: "/admin/inventory",
+    icon: Boxes,
+},
 ]
 
 export function AdminSidebar() {
