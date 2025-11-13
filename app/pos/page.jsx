@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ShoppingCart, Users, Tag, History, Plus, Minus, Trash2, Search, Package, LogOut, User } from "lucide-react"
-import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown } from "react-bootstrap"
+import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown, Pagination } from "react-bootstrap"
 import { customersData } from "@/lib/data/customers"
 import jsPDF from "jspdf";
 import { getCurrentUser, logout } from "@/lib/auth"
@@ -42,6 +42,10 @@ export default function POSPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("Tất cả")
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
   // New Customer Form
   const [newCustomerData, setNewCustomerData] = useState({
     name: "",
@@ -51,17 +55,26 @@ export default function POSPage() {
   })
 
   // ===================== FETCH DATA =====================
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1, pageSize = itemsPerPage) => {
     try {
-      setLoading(true)
-      const data = await productService.getProducts()
-      setProducts(data)
-    } catch {
-      toast.error("❌ Lỗi khi tải danh sách sản phẩm!")
+      setLoading(true);
+      const res = await productService.getProducts({
+        page,
+        pageSize,
+        search: searchTerm,
+        category: categoryFilter !== "Tất cả" ? categoryFilter : undefined,
+      });
+
+      setProducts(res.result || []);
+      setTotalPages(res.meta?.totalPage || 1);
+      setCurrentPage(res.meta?.currentPage || page);
+    } catch (err) {
+      
+      toast.error("Không có danh sách sản phẩm!");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -98,8 +111,11 @@ export default function POSPage() {
   }
 
 
+   useEffect(() => {
+    fetchProducts(currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage, searchTerm, categoryFilter]);
+
   useEffect(() => {
-    fetchProducts()
     fetchCategories()
     fetchPromotions()
     fetchOrders()
@@ -376,41 +392,61 @@ export default function POSPage() {
                   </Row>
 
                   <Row className="g-3">
-                    {filteredProducts.map((product) => (
-                      <Col key={product.id} xs={6} sm={4} lg={3}>
-                        <Card
-                          className="h-100 cursor-pointer"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => addToCart(product)}
-                        >
-                          <Card.Body>
-                            <div
-                              className="bg-light rounded mb-3 d-flex align-items-center justify-content-center"
-                              style={{ height: "120px", border: "2px solid #dee2e6" }}
-                            >
-                              <Package size={48} className="text-muted" />
-                            </div>
-                            <h6
-                              className="card-title small mb-1"
-                              style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            >
-                              {product.productName}
-                            </h6>
-                            <p className="text-muted small mb-2">{product.categoryName}</p>
-                            <div className="d-flex justify-content-between align-items-center">
-                              <strong className="small">
-                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                  product.price,
-                                )}
-                              </strong>
-                              <Badge bg="light" text="dark" className="small">
-                                {product.unit}
-                              </Badge>
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
+                    {filteredProducts
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((product) => (
+                        <Col key={product.id} xs={6} sm={4} lg={3}>
+                          <Card
+                            className="h-100 cursor-pointer"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => addToCart(product)}
+                          >
+                            <Card.Body>
+                              <div
+                                className="bg-light rounded mb-3 d-flex align-items-center justify-content-center"
+                                style={{ height: "120px", border: "2px solid #dee2e6" }}
+                              >
+                                <Package size={48} className="text-muted" />
+                              </div>
+                              <h6
+                                className="card-title small mb-1"
+                                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              >
+                                {product.productName}
+                              </h6>
+                              <p className="text-muted small mb-2">{product.categoryName}</p>
+                              <div className="d-flex justify-content-between align-items-center">
+                                <strong className="small">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                    product.price,
+                                  )}
+                                </strong>
+                                <Badge bg="light" text="dark" className="small">
+                                  {product.unit}
+                                </Badge>
+                              </div>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+
+                    <div className="d-flex justify-content-end align-items-center mt-3">
+                      <Form.Select
+                        value={itemsPerPage}
+                        onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                        style={{ width: "120px", marginRight: "1rem" }}
+                      >
+                        {[5, 10, 20].map(n => <option key={n} value={n}>{n} / trang</option>)}
+                      </Form.Select>
+
+                      <Pagination>
+                        <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} />
+                        {[...Array(totalPages)].map((_, i) => (
+                          <Pagination.Item key={i + 1} active={currentPage === i + 1} onClick={() => setCurrentPage(i + 1)}>{i + 1}</Pagination.Item>
+                        ))}
+                        <Pagination.Next disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} />
+                      </Pagination>
+                    </div>
                   </Row>
                 </div>
               </div>
