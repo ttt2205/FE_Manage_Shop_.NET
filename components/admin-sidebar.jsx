@@ -46,8 +46,8 @@ const menuItems = [
     icon: Receipt,
   },
 {
-    title: "Kho tổng",
-    href: "/admin/inventory",
+    title: "Kiểm kê",
+    href: "/admin/audit_store",
     icon: Boxes,
 },
 ]
