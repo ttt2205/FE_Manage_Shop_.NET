@@ -26,6 +26,10 @@ const orderService = {
     const response = await api.delete(`/order/${id}`);
     return response.data;
   },
+  getOrdersByUser: async (id) => {
+    const response = await api.get(`/order/user/${id}`);
+    return response.data;
+  },
 };
 
 export default orderService;

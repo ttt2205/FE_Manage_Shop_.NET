@@ -1,9 +1,11 @@
 import api from "./api";
 
 const productService = {
-  getProducts: async () => {
-    const response = await api.get("/product");
-    return response.data.data;
+  getProducts: async ({ page = 1, pageSize = 10, search = "" } = {}) => {
+    const response = await api.get("/product", {
+      params: { page, pageSize, search },
+    });
+    return response.data;
   },
 
   getProductById: async (id) => {

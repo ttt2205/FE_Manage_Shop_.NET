@@ -1,27 +1,52 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ShoppingCart, Users, Tag, History, Plus, Minus, Trash2, Search, Package, LogOut, User } from "lucide-react"
-import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown } from "react-bootstrap"
-import { productsData } from "@/lib/data/products"
+import { Row, Col, Card, Button, Form, Modal, Badge, Dropdown, Pagination } from "react-bootstrap"
 import { customersData } from "@/lib/data/customers"
-import { promotionsData } from "@/lib/data/promotions"
-import { ordersData } from "@/lib/data/orders"
+import jsPDF from "jspdf";
 import { getCurrentUser, logout } from "@/lib/auth"
+import { toast, ToastContainer } from "react-toastify";
+import productService from "@/service/productService";
+import categoryService from "@/service/categoryService";
+import PromotionService from "@/service/promotionService"
+import orderService from "@/service/orderService"
+import paymentService from "@/service/paymentService"
 
 export default function POSPage() {
   const currentUser = getCurrentUser()
+
+  // Tab & Loading
   const [activeTab, setActiveTab] = useState("sell")
+  const [loading, setLoading] = useState(false)
+
+  // Products, Categories, Promotions
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [promotions, setPromotions] = useState([])
+  const [orders, setOrders] = useState([])
+
+  // Cart & Customer & Promotion
   const [cart, setCart] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [selectedPromotion, setSelectedPromotion] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("Tất cả")
+  const [paymentMethod, setPaymentMethod] = useState("cash")
+
+  // Dialogs
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
   const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false)
   const [isPromotionDialogOpen, setIsPromotionDialogOpen] = useState(false)
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState("cash")
+
+  // Search & Category Filter
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("Tất cả")
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // New Customer Form
   const [newCustomerData, setNewCustomerData] = useState({
     name: "",
     email: "",
@@ -29,17 +54,77 @@ export default function POSPage() {
     address: "",
   })
 
-  const categories = ["Tất cả", "Áo Nam", "Quần Nữ", "Váy Nữ", "Giày Nam", "Phụ Kiện"]
+  // ===================== FETCH DATA =====================
+  const fetchProducts = async (page = 1, pageSize = itemsPerPage) => {
+    try {
+      setLoading(true);
+      const res = await productService.getProducts({
+        page,
+        pageSize,
+        search: searchTerm,
+        category: categoryFilter !== "Tất cả" ? categoryFilter : undefined,
+      });
 
-  const filteredProducts = productsData.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "Tất cả" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+      setProducts(res.result || []);
+      setTotalPages(res.meta?.totalPage || 1);
+      setCurrentPage(res.meta?.currentPage || page);
+    } catch (err) {
+      
+      toast.error("Không có danh sách sản phẩm!");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getCategories()
+      setCategories(data)
+    } catch {
+      toast.error("❌ Lỗi khi tải danh mục!")
+    }
+  }
+
+  const fetchPromotions = async () => {
+    try {
+      setLoading(true)
+      const data = await PromotionService.getAllPromotion()
+      setPromotions(data)
+    } catch (err) {
+      toast.error("❌ Lỗi khi tải danh sách khuyến mãi!")
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const data = await orderService.getOrdersByUser(1)
+      setOrders(data)
+    } catch {
+      toast.error("❌ Lỗi khi tải danh sách lịch sử mua hàng!")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+   useEffect(() => {
+    fetchProducts(currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage, searchTerm, categoryFilter]);
+
+  useEffect(() => {
+    fetchCategories()
+    fetchPromotions()
+    fetchOrders()
+  }, [])
+
+  // ===================== CART LOGIC =====================
   const addToCart = (product) => {
-    const existingItem = cart.find((item) => item.product.id === product.id)
-    if (existingItem) {
+    const existing = cart.find((item) => item.product.id === product.id)
+    if (existing) {
       setCart(cart.map((item) => (item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)))
     } else {
       setCart([...cart, { product, quantity: 1 }])
@@ -50,7 +135,7 @@ export default function POSPage() {
     setCart(
       cart
         .map((item) => (item.product.id === productId ? { ...item, quantity: item.quantity + delta } : item))
-        .filter((item) => item.quantity > 0),
+        .filter((item) => item.quantity > 0)
     )
   }
 
@@ -64,49 +149,80 @@ export default function POSPage() {
     setSelectedPromotion(null)
   }
 
+
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
 
   const calculateDiscount = () => {
-    if (!selectedPromotion || !selectedPromotion.isActive) return 0
-    if (subtotal < selectedPromotion.minPurchase) return 0
+    if (!selectedPromotion || selectedPromotion.status !== "active") return 0;
+    if (subtotal < (selectedPromotion.minOrderAmount || 0)) return 0;
 
-    let discount = 0
-    if (selectedPromotion.discountType === "percentage") {
-      discount = (subtotal * selectedPromotion.discountValue) / 100
-      if (selectedPromotion.maxDiscount) {
-        discount = Math.min(discount, selectedPromotion.maxDiscount)
-      }
-    } else {
-      discount = selectedPromotion.discountValue
+    let discount = 0;
+    const type = selectedPromotion.discountType?.toLowerCase();
+
+    if (type === "percent") {
+      discount = (subtotal * selectedPromotion.discountValue) / 100;
+    } else if (type === "fixed") {
+      discount = selectedPromotion.discountValue || 0;
     }
-    return discount
-  }
+    return discount;
+  };
 
   const discount = calculateDiscount()
   const total = subtotal - discount
 
-  const handleCheckout = () => {
-    if (cart.length === 0) return
-    console.log("[v0] Checkout:", {
-      customer: selectedCustomer,
-      promotion: selectedPromotion,
-      cart,
-      subtotal,
-      discount,
-      total,
-      paymentMethod,
-    })
-    setIsCheckoutDialogOpen(false)
-    clearCart()
-    alert("Thanh toán thành công!")
-  }
-
-  const handleAddCustomer = () => {
-    if (!newCustomerData.name || !newCustomerData.phone) {
-      alert("Vui lòng nhập tên và số điện thoại khách hàng!")
-      return
+  // ===================== CHECKOUT =====================
+  const handleCheckout = async () => {
+    // if (!selectedCustomer) {
+    //   toast.warning("Vui lòng chọn khách hàng!")
+    //   return
+    // }
+    const orderData = {
+      customerId: 1,
+      userId: 1,
+      promotionId: selectedPromotion ? selectedPromotion.id : null,
+      status: "pending",
+      totalAmount: total,
+      discountAmount: discount,
+      items: cart.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+        subtotal: item.product.price * item.quantity,
+      })),
     }
 
+    try {
+      // Tạo order
+      const response = await orderService.createOrder(orderData);
+      const createdOrder = response.data; // backend trả data bên trong field "data"
+
+      if (!createdOrder?.id) {
+        toast.error("Không tạo được đơn hàng!");
+        return;
+      }
+
+      // Tạo payment
+      await paymentService.createPayment({
+        orderId: Number(createdOrder.id),
+        PaymentMethod: paymentMethod,
+      })
+
+      generateInvoicePDF(createdOrder, cart);
+      toast.success("Tạo đơn hàng và thanh toán thành công!")
+      clearCart()
+      setIsCheckoutDialogOpen(false)
+    } catch (error) {
+      console.error(error)
+      toast.error(error?.response?.data?.message || error.message || "Không thể tạo đơn hàng hoặc thanh toán.")
+    }
+  }
+
+  // ===================== ADD CUSTOMER =====================
+  const handleAddCustomer = () => {
+    if (!newCustomerData.name || !newCustomerData.phone) {
+      toast.warning("Vui lòng nhập tên và số điện thoại khách hàng!")
+      return
+    }
     const newCustomer = {
       id: `CUS${String(customersData.length + 1).padStart(3, "0")}`,
       ...newCustomerData,
@@ -117,11 +233,60 @@ export default function POSPage() {
     setSelectedCustomer(newCustomer)
     setIsAddCustomerDialogOpen(false)
     setNewCustomerData({ name: "", email: "", phone: "", address: "" })
-    alert("Thêm khách hàng thành công!")
+    toast.success("Thêm khách hàng thành công!")
   }
+
+  // ===================== FILTERED PRODUCTS =====================
+  const filteredProducts = products.filter((product) => {
+    const name = product.productName?.toLowerCase() || ""
+    const barcode = product.barcode?.toLowerCase() || ""
+    const matchesSearch = name.includes(searchTerm.toLowerCase()) || barcode.includes(searchTerm.toLowerCase())
+    const matchesCategory =
+      categoryFilter === "Tất cả" ||
+      (product.category?.categoryName && product.category.categoryName === categoryFilter)
+    return matchesSearch && matchesCategory
+  })
+
+
+
+  const generateInvoicePDF = (order, cart) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("HÓA ĐƠN THANH TOÁN", 105, 20, { align: "center" });
+
+    doc.setFontSize(12);
+    doc.text(`Mã đơn hàng: ${order.id}`, 20, 40);
+    doc.text(`Khách hàng: ${order.customerName || "Khách lẻ"}`, 20, 50);
+    doc.text(`Ngày: ${new Date(order.orderDate).toLocaleString()}`, 20, 60);
+
+    // Tiêu đề bảng
+    doc.text("STT", 20, 80);
+    doc.text("Sản phẩm", 40, 80);
+    doc.text("SL", 120, 80);
+    doc.text("Đơn giá", 140, 80);
+    doc.text("Thành tiền", 180, 80);
+
+    let y = 90;
+    cart.forEach((item, index) => {
+      doc.text(`${index + 1}`, 20, y);
+      doc.text(`${item.product.name}`, 40, y);
+      doc.text(`${item.quantity}`, 120, y);
+      doc.text(`${item.product.price}`, 140, y);
+      doc.text(`${item.product.price * item.quantity}`, 180, y);
+      y += 10;
+    });
+
+    doc.text(`Tổng: ${order.totalAmount + order.discountAmount}`, 140, y + 10);
+    doc.text(`Giảm giá: ${order.discountAmount}`, 140, y + 20);
+    doc.text(`Thanh toán: ${order.totalAmount}`, 140, y + 30);
+
+    doc.save(`invoice_order_${order.id}.pdf`);
+  };
+
 
   return (
     <div className="d-flex" style={{ height: "100vh", backgroundColor: "#f8f9fa" }}>
+      <ToastContainer position="top-right" autoClose={2000} />
       {/* Sidebar */}
       <div
         className="d-flex flex-column align-items-center py-4 gap-3"
@@ -218,8 +383,8 @@ export default function POSPage() {
                     <Col md={4}>
                       <Form.Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
                         {categories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
+                          <option key={cat.id} value={cat.id}>
+                            {cat.categoryName}
                           </option>
                         ))}
                       </Form.Select>
@@ -227,41 +392,61 @@ export default function POSPage() {
                   </Row>
 
                   <Row className="g-3">
-                    {filteredProducts.map((product) => (
-                      <Col key={product.id} xs={6} sm={4} lg={3}>
-                        <Card
-                          className="h-100 cursor-pointer"
-                          style={{ cursor: "pointer" }}
-                          onClick={() => addToCart(product)}
-                        >
-                          <Card.Body>
-                            <div
-                              className="bg-light rounded mb-3 d-flex align-items-center justify-content-center"
-                              style={{ height: "120px", border: "2px solid #dee2e6" }}
-                            >
-                              <Package size={48} className="text-muted" />
-                            </div>
-                            <h6
-                              className="card-title small mb-1"
-                              style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            >
-                              {product.name}
-                            </h6>
-                            <p className="text-muted small mb-2">{product.category}</p>
-                            <div className="d-flex justify-content-between align-items-center">
-                              <strong className="small">
-                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                  product.price,
-                                )}
-                              </strong>
-                              <Badge bg="light" text="dark" className="small">
-                                {product.stock}
-                              </Badge>
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
+                    {filteredProducts
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((product) => (
+                        <Col key={product.id} xs={6} sm={4} lg={3}>
+                          <Card
+                            className="h-100 cursor-pointer"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => addToCart(product)}
+                          >
+                            <Card.Body>
+                              <div
+                                className="bg-light rounded mb-3 d-flex align-items-center justify-content-center"
+                                style={{ height: "120px", border: "2px solid #dee2e6" }}
+                              >
+                                <Package size={48} className="text-muted" />
+                              </div>
+                              <h6
+                                className="card-title small mb-1"
+                                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              >
+                                {product.productName}
+                              </h6>
+                              <p className="text-muted small mb-2">{product.categoryName}</p>
+                              <div className="d-flex justify-content-between align-items-center">
+                                <strong className="small">
+                                  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                    product.price,
+                                  )}
+                                </strong>
+                                <Badge bg="light" text="dark" className="small">
+                                  {product.unit}
+                                </Badge>
+                              </div>
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
+
+                    <div className="d-flex justify-content-end align-items-center mt-3">
+                      <Form.Select
+                        value={itemsPerPage}
+                        onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                        style={{ width: "120px", marginRight: "1rem" }}
+                      >
+                        {[5, 10, 20].map(n => <option key={n} value={n}>{n} / trang</option>)}
+                      </Form.Select>
+
+                      <Pagination>
+                        <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} />
+                        {[...Array(totalPages)].map((_, i) => (
+                          <Pagination.Item key={i + 1} active={currentPage === i + 1} onClick={() => setCurrentPage(i + 1)}>{i + 1}</Pagination.Item>
+                        ))}
+                        <Pagination.Next disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} />
+                      </Pagination>
+                    </div>
                   </Row>
                 </div>
               </div>
@@ -315,10 +500,16 @@ export default function POSPage() {
                           {selectedPromotion ? "Đổi" : "Chọn"}
                         </Button>
                       </div>
+
                       {selectedPromotion ? (
                         <div className="small">
-                          <p className="fw-medium mb-1 font-monospace">{selectedPromotion.code}</p>
-                          <p className="text-muted mb-0">{selectedPromotion.description}</p>
+                          <p className="fw-medium mb-1 font-monospace">{selectedPromotion.promoCode}</p>
+                          <p className="text-muted mb-1">{selectedPromotion.description}</p>
+                          {subtotal < (selectedPromotion.minOrderAmount || 0) && (
+                            <p className="text-danger small mb-0">
+                              Chưa đủ điều kiện (tối thiểu {selectedPromotion.minOrderAmount}₫)
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <p className="small text-muted mb-0">Không có</p>
@@ -339,7 +530,7 @@ export default function POSPage() {
                           <Card.Body className="p-3">
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div className="flex-grow-1">
-                                <p className="fw-medium small mb-1">{item.product.name}</p>
+                                <p className="fw-medium small mb-1">{item.product.productName}</p>
                                 <p className="text-muted small mb-0">
                                   {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
                                     item.product.price,
@@ -490,26 +681,26 @@ export default function POSPage() {
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="space-y-2 p-3">
-                    {promotionsData
-                      .filter((p) => p.isActive)
+                    {promotions
+                      .filter((p) => p.status)
                       .map((promotion) => (
                         <Card key={promotion.id} className="mb-2">
                           <Card.Body className="p-3">
                             <div className="d-flex justify-content-between align-items-start">
                               <div>
-                                <p className="fw-medium small font-monospace mb-1">{promotion.code}</p>
+                                <p className="fw-medium small font-monospace mb-1">{promotion.promoCode}</p>
                                 <p className="text-muted small mb-1">{promotion.description}</p>
                                 <p className="small mb-0">
                                   Giảm:{" "}
-                                  {promotion.discountType === "percentage"
+                                  {promotion.discountType === "percent"
                                     ? `${promotion.discountValue}%`
                                     : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                        promotion.discountValue,
-                                      )}
+                                      promotion.discountValue,
+                                    )}
                                 </p>
                               </div>
                               <Badge bg="light" text="dark" className="small">
-                                {promotion.usageCount}
+                                {promotion.usedCount}
                                 {promotion.usageLimit ? ` / ${promotion.usageLimit}` : ""}
                               </Badge>
                             </div>
@@ -530,30 +721,44 @@ export default function POSPage() {
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="space-y-2 p-3">
-                    {ordersData.map((order) => (
+                    {orders.map((order) => (
                       <Card key={order.id} className="mb-2">
                         <Card.Body className="p-3">
                           <div className="d-flex justify-content-between align-items-start mb-2">
                             <div>
                               <p className="fw-medium small font-monospace mb-1">{order.id}</p>
-                              <p className="text-muted small mb-1">{order.customerName}</p>
+                              <p className="text-muted small mb-1">{order.customer.name}</p>
                               <p className="text-muted small mb-0">
-                                {new Date(order.createdAt).toLocaleString("vi-VN")}
+                                {new Date(order.orderDate).toLocaleString("vi-VN")}
                               </p>
                             </div>
                             <div className="text-end">
                               <p className="fw-bold small mb-1">
                                 {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                  order.total,
+                                  order.totalAmount,
                                 )}
                               </p>
-                              <Badge bg={order.status === "completed" ? "success" : "danger"} className="small">
-                                {order.status === "completed"
+                              <Badge
+                                bg={
+                                  order.status === "paid"
+                                    ? "success"
+                                    : order.status === "refunded"
+                                      ? "info"
+                                      : order.status === "pending"
+                                        ? "warning"
+                                        : "danger"
+                                }
+                                className="small"
+                              >
+                                {order.status === "paid"
                                   ? "Hoàn thành"
                                   : order.status === "refunded"
                                     ? "Đã hoàn"
-                                    : "Hủy"}
+                                    : order.status === "pending"
+                                      ? "Đang chờ"
+                                      : "Hủy"}
                               </Badge>
+
                             </div>
                           </div>
                           <p className="text-muted small mb-0">
@@ -675,8 +880,8 @@ export default function POSPage() {
           <Modal.Title>Chọn khuyến mãi</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: "400px", overflowY: "auto" }}>
-          {promotionsData
-            .filter((p) => p.isActive)
+          {promotions
+            .filter((p) => p.status === "active")
             .map((promotion) => (
               <Card
                 key={promotion.id}
@@ -690,21 +895,23 @@ export default function POSPage() {
                 <Card.Body className="p-3">
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
-                      <p className="fw-medium small font-monospace mb-1">{promotion.code}</p>
+                      <p className="fw-medium small font-monospace mb-1">{promotion.promoCode}</p>
                       <p className="text-muted small mb-1">{promotion.description}</p>
                       <p className="small mb-1">
                         Giảm:{" "}
-                        {promotion.discountType === "percentage"
+                        {promotion.discountType === "percent"
                           ? `${promotion.discountValue}%`
-                          : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                              promotion.discountValue,
-                            )}
+                          : new Intl.NumberFormat("vi-VN", {
+                            style: "currency",
+                            currency: "VND",
+                          }).format(promotion.discountValue)}
                       </p>
                       <p className="text-muted small mb-0">
                         Đơn tối thiểu:{" "}
-                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                          promotion.minPurchase,
-                        )}
+                        {new Intl.NumberFormat("vi-VN", {
+                          style: "currency",
+                          currency: "VND",
+                        }).format(promotion.minOrderAmount)}
                       </p>
                     </div>
                   </div>
@@ -712,6 +919,7 @@ export default function POSPage() {
               </Card>
             ))}
         </Modal.Body>
+
         <Modal.Footer>
           <Button
             variant="secondary"
