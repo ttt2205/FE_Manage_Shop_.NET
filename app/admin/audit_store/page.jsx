@@ -74,7 +74,7 @@ const Inventory = () => {
                 alert(`Đã bắt đầu phiên kiểm kê! ID: ${result.data.id}`);
                 setIsAuditModalOpen(false);
                 setAuditNote("");
-                router.push(`/admin/inventory/audit/${result.data.id}`);
+                router.push(`/admin/audit_store/audit/${result.data.id}`);
             } else {
                 alert(`Lỗi: ${result.message}`);
             }
@@ -100,7 +100,7 @@ const Inventory = () => {
                         <Plus size={18} />
                         Tạo Phiên Kiểm Kê
                     </Button>
-                    <Button variant="warning" onClick={() => router.push("/admin/inventory/audit/history")} className="d-flex align-items-center gap-2">
+                    <Button variant="warning" onClick={() => router.push("/admin/audit_store/audit/history")} className="d-flex align-items-center gap-2">
                         <Plus size={18} />
                         Lịch sử kiểm kê
                     </Button>
