@@ -1,166 +1,191 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Plus, Search, Edit, Trash2 } from "lucide-react"
-import { Container, Card, Button, Form, Table, Modal, Spinner, Alert } from "react-bootstrap"
-import supplierService from "@/service/supplierService"
+import { useState, useEffect } from "react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import {
+  Container,
+  Card,
+  Button,
+  Form,
+  Table,
+  Modal,
+  Spinner,
+  Alert,
+} from "react-bootstrap";
+import supplierService from "@/service/supplierService";
+import { toast } from "react-toastify";
 
 export default function SuppliersPage() {
-  const [suppliers, setSuppliers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedSupplier, setSelectedSupplier] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [suppliers, setSuppliers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
     address: "",
-  })
+  });
   const [pagination, setPagination] = useState({
     currentPage: 1,
     pageSize: 10,
     totalPages: 1,
     totalItems: 0,
-  })
+  });
 
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  // =================================== Fetch Functions ===============================
   // Load suppliers from API
-  const loadSuppliers = async (page = 1) => {
+  const fetchSuppliers = async (page = 1) => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await supplierService.getSuppliers(page, pagination.pageSize)
-      
+      setLoading(true);
+      setError(null);
+      const response = await supplierService.getSuppliers(
+        page,
+        pagination.pageSize
+      );
+
       if (response.success) {
-        setSuppliers(response.result || [])
+        setSuppliers(response.result || []);
         setPagination({
           currentPage: response.meta?.currentPage || 1,
           pageSize: response.meta?.pageSize || 10,
           totalPages: response.meta?.totalPage || 1,
           totalItems: response.meta?.totalItems || 0,
-        })
+        });
       } else {
-        setError(response.message || "Không thể tải danh sách nhà cung cấp")
+        setError(response.message || "Không thể tải danh sách nhà cung cấp");
       }
     } catch (err) {
-      console.error("Load suppliers error:", err)
-      setError("Lỗi kết nối đến server. Vui lòng thử lại.")
+      console.error("Load suppliers error:", err);
+      setError("Lỗi kết nối đến server. Vui lòng thử lại.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    loadSuppliers()
-  }, [])
-
+  // =================================== Filter Functions ===============================
   const filteredSuppliers = suppliers.filter(
     (supplier) =>
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (supplier.phone && supplier.phone.includes(searchTerm)) ||
-      (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+      (supplier.email &&
+        supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
+  // =================================== Handle Functions ===============================
   const handleAdd = async () => {
     if (!formData.name) {
-      alert("Vui lòng nhập tên nhà cung cấp!")
-      return
+      toast.warning("Vui lòng nhập tên nhà cung cấp!");
+      return;
     }
 
     try {
-      setSubmitting(true)
-      const response = await supplierService.createSupplier(formData)
-      
+      setSubmitting(true);
+      const response = await supplierService.createSupplier(formData);
+
       if (response.success) {
-        alert("Thêm nhà cung cấp thành công!")
-        setIsAddDialogOpen(false)
-        setFormData({ name: "", phone: "", email: "", address: "" })
-        loadSuppliers(pagination.currentPage)
+        toast.success("Thêm nhà cung cấp thành công!");
+        setIsAddDialogOpen(false);
+        setFormData({ name: "", phone: "", email: "", address: "" });
+        fetchSuppliers(pagination.currentPage);
       } else {
-        alert(response.message || "Có lỗi xảy ra khi thêm nhà cung cấp")
+        toast.error(response.message || "Có lỗi xảy ra khi thêm nhà cung cấp");
       }
     } catch (err) {
-      console.error("Create supplier error:", err)
-      alert("Lỗi kết nối đến server. Vui lòng thử lại.")
+      console.error("Create supplier error:", err);
+      toast.error("Lỗi kết nối đến server. Vui lòng thử lại.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleEdit = async () => {
     if (!selectedSupplier || !formData.name) {
-      alert("Vui lòng nhập tên nhà cung cấp!")
-      return
+      toast.warning("Vui lòng nhập tên nhà cung cấp!");
+      return;
     }
 
     try {
-      setSubmitting(true)
-      const response = await supplierService.updateSupplier(selectedSupplier.id, formData)
-      
+      setSubmitting(true);
+      const response = await supplierService.updateSupplier(
+        selectedSupplier.id,
+        formData
+      );
+
       if (response.success) {
-        alert("Cập nhật nhà cung cấp thành công!")
-        setIsEditDialogOpen(false)
-        setSelectedSupplier(null)
-        setFormData({ name: "", phone: "", email: "", address: "" })
-        loadSuppliers(pagination.currentPage)
+        toast.success("Cập nhật nhà cung cấp thành công!");
+        setIsEditDialogOpen(false);
+        setSelectedSupplier(null);
+        setFormData({ name: "", phone: "", email: "", address: "" });
+        fetchSuppliers(pagination.currentPage);
       } else {
-        alert(response.message || "Có lỗi xảy ra khi cập nhật nhà cung cấp")
+        toast.error(
+          response.message || "Có lỗi xảy ra khi cập nhật nhà cung cấp"
+        );
       }
     } catch (err) {
-      console.error("Update supplier error:", err)
-      alert("Lỗi kết nối đến server. Vui lòng thử lại.")
+      console.error("Update supplier error:", err);
+      toast.error("Lỗi kết nối đến server. Vui lòng thử lại.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (!selectedSupplier) return
+    if (!selectedSupplier) return;
 
     try {
-      setSubmitting(true)
-      const response = await supplierService.deleteSupplier(selectedSupplier.id)
-      
+      setSubmitting(true);
+      const response = await supplierService.deleteSupplier(
+        selectedSupplier.id
+      );
+
       if (response.success) {
-        alert("Xóa nhà cung cấp thành công!")
-        setIsDeleteDialogOpen(false)
-        setSelectedSupplier(null)
-        loadSuppliers(pagination.currentPage)
+        toast.success("Xóa nhà cung cấp thành công!");
+        setIsDeleteDialogOpen(false);
+        setSelectedSupplier(null);
+        fetchSuppliers(pagination.currentPage);
       } else {
-        alert(response.message || "Có lỗi xảy ra khi xóa nhà cung cấp")
+        toast.error(response.message || "Có lỗi xảy ra khi xóa nhà cung cấp");
       }
     } catch (err) {
-      console.error("Delete supplier error:", err)
-      alert("Lỗi kết nối đến server. Vui lòng thử lại.")
+      console.error("Delete supplier error:", err);
+      toast.error("Lỗi kết nối đến server. Vui lòng thử lại.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const openEditDialog = (supplier) => {
-    setSelectedSupplier(supplier)
+    setSelectedSupplier(supplier);
     setFormData({
       name: supplier.name,
       phone: supplier.phone || "",
       email: supplier.email || "",
       address: supplier.address || "",
-    })
-    setIsEditDialogOpen(true)
-  }
+    });
+    setIsEditDialogOpen(true);
+  };
 
   const openDeleteDialog = (supplier) => {
-    setSelectedSupplier(supplier)
-    setIsDeleteDialogOpen(true)
-  }
+    setSelectedSupplier(supplier);
+    setIsDeleteDialogOpen(true);
+  };
 
   const handlePageChange = (newPage) => {
-    loadSuppliers(newPage)
-  }
+    fetchSuppliers(newPage);
+  };
 
+  // =================================== Render UI ===============================
   return (
     <Container fluid className="py-4">
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -168,7 +193,11 @@ export default function SuppliersPage() {
           <h1 className="display-6 fw-bold">Quản Lý Nhà Cung Cấp</h1>
           <p className="text-muted">Quản lý thông tin nhà cung cấp</p>
         </div>
-        <Button variant="primary" onClick={() => setIsAddDialogOpen(true)} className="d-flex align-items-center gap-2">
+        <Button
+          variant="primary"
+          onClick={() => setIsAddDialogOpen(true)}
+          className="d-flex align-items-center gap-2"
+        >
           <Plus size={18} />
           Thêm nhà cung cấp
         </Button>
@@ -225,7 +254,13 @@ export default function SuppliersPage() {
                     <td>{supplier.name}</td>
                     <td>{supplier.phone || "—"}</td>
                     <td>{supplier.email || "—"}</td>
-                    <td style={{ maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <td
+                      style={{
+                        maxWidth: "300px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
                       {supplier.address || "—"}
                     </td>
                     <td className="text-end">
@@ -258,7 +293,8 @@ export default function SuppliersPage() {
           <Card.Footer className="bg-light">
             <div className="d-flex justify-content-between align-items-center">
               <span className="text-muted small">
-                Hiển thị {filteredSuppliers.length} / {pagination.totalItems} nhà cung cấp
+                Hiển thị {filteredSuppliers.length} / {pagination.totalItems}{" "}
+                nhà cung cấp
               </span>
               <div className="d-flex gap-2">
                 <Button
@@ -287,7 +323,11 @@ export default function SuppliersPage() {
       </Card>
 
       {/* Add Modal */}
-      <Modal show={isAddDialogOpen} onHide={() => setIsAddDialogOpen(false)} size="lg">
+      <Modal
+        show={isAddDialogOpen}
+        onHide={() => setIsAddDialogOpen(false)}
+        size="lg"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Thêm nhà cung cấp mới</Modal.Title>
         </Modal.Header>
@@ -296,9 +336,11 @@ export default function SuppliersPage() {
             <Form.Label>
               Tên nhà cung cấp <span className="text-danger">*</span>
             </Form.Label>
-            <Form.Control 
-              value={formData.name} 
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            <Form.Control
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -306,7 +348,9 @@ export default function SuppliersPage() {
             <Form.Label>Số điện thoại</Form.Label>
             <Form.Control
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -315,7 +359,9 @@ export default function SuppliersPage() {
             <Form.Control
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -325,13 +371,19 @@ export default function SuppliersPage() {
               as="textarea"
               rows={3}
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsAddDialogOpen(false)} disabled={submitting}>
+          <Button
+            variant="secondary"
+            onClick={() => setIsAddDialogOpen(false)}
+            disabled={submitting}
+          >
             Hủy
           </Button>
           <Button variant="primary" onClick={handleAdd} disabled={submitting}>
@@ -341,7 +393,11 @@ export default function SuppliersPage() {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal show={isEditDialogOpen} onHide={() => setIsEditDialogOpen(false)} size="lg">
+      <Modal
+        show={isEditDialogOpen}
+        onHide={() => setIsEditDialogOpen(false)}
+        size="lg"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Chỉnh sửa nhà cung cấp</Modal.Title>
         </Modal.Header>
@@ -350,9 +406,11 @@ export default function SuppliersPage() {
             <Form.Label>
               Tên nhà cung cấp <span className="text-danger">*</span>
             </Form.Label>
-            <Form.Control 
-              value={formData.name} 
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            <Form.Control
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -360,7 +418,9 @@ export default function SuppliersPage() {
             <Form.Label>Số điện thoại</Form.Label>
             <Form.Control
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -369,7 +429,9 @@ export default function SuppliersPage() {
             <Form.Control
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
@@ -379,32 +441,50 @@ export default function SuppliersPage() {
               as="textarea"
               rows={3}
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
+              }
               disabled={submitting}
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsEditDialogOpen(false)} disabled={submitting}>
+          <Button
+            variant="secondary"
+            onClick={() => setIsEditDialogOpen(false)}
+            disabled={submitting}
+          >
             Hủy
           </Button>
           <Button variant="primary" onClick={handleEdit} disabled={submitting}>
-            {submitting ? <Spinner animation="border" size="sm" /> : "Lưu thay đổi"}
+            {submitting ? (
+              <Spinner animation="border" size="sm" />
+            ) : (
+              "Lưu thay đổi"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
 
       {/* Delete Modal */}
-      <Modal show={isDeleteDialogOpen} onHide={() => setIsDeleteDialogOpen(false)}>
+      <Modal
+        show={isDeleteDialogOpen}
+        onHide={() => setIsDeleteDialogOpen(false)}
+      >
         <Modal.Header closeButton>
           <Modal.Title>Xác nhận xóa</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Bạn có chắc chắn muốn xóa nhà cung cấp <strong>{selectedSupplier?.name}</strong>? Hành động này không thể
+          Bạn có chắc chắn muốn xóa nhà cung cấp{" "}
+          <strong>{selectedSupplier?.name}</strong>? Hành động này không thể
           hoàn tác.
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setIsDeleteDialogOpen(false)} disabled={submitting}>
+          <Button
+            variant="secondary"
+            onClick={() => setIsDeleteDialogOpen(false)}
+            disabled={submitting}
+          >
             Hủy
           </Button>
           <Button variant="danger" onClick={handleDelete} disabled={submitting}>
@@ -413,5 +493,5 @@ export default function SuppliersPage() {
         </Modal.Footer>
       </Modal>
     </Container>
-  )
+  );
 }

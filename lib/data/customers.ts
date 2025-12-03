@@ -1,4 +1,4 @@
-import type { Customer } from "../types"
+import type { Customer } from "../types";
 
 export const customersData: Customer[] = [
   {
@@ -46,4 +46,4 @@ export const customersData: Customer[] = [
     totalPurchases: 19500000,
     createdAt: "2024-05-12T11:00:00Z",
   },
-]
+];

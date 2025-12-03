@@ -12,6 +12,8 @@ import {
   BarChart3,
   Receipt,
   Boxes,
+  Truck, // Thêm icon Truck
+  Building,
 } from "lucide-react";
 
 const menuItems = [
@@ -31,7 +33,7 @@ const menuItems = [
     href: "/admin/products",
     icon: Package,
   },
-  { title: "Tồn kho", href: "/admin/inventory", icon: Warehouse }, // THÊM DÒNG NÀY
+  { title: "Tồn kho", href: "/admin/inventory", icon: Building }, // THÊM DÒNG NÀY
   {
     title: "Khuyến mãi",
     href: "/admin/promotions",
@@ -52,11 +54,11 @@ const menuItems = [
     href: "/admin/statistics",
     icon: BarChart3,
   },
-  {
-    title: "Hóa đơn",
-    href: "/admin/invoices",
-    icon: Receipt,
-  },
+  // {
+  //   title: "Hóa đơn",
+  //   href: "/admin/invoices",
+  //   icon: Receipt,
+  // },
   {
     title: "Kiểm kê",
     href: "/admin/audit_store",

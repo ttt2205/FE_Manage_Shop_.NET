@@ -1,9 +1,9 @@
-import api from "./api"; 
+import api from "./api";
 
 const paymentService = {
   createPayment: async (paymentData) => {
-    const res = await api.post("/payment", paymentData);
-    return res.data;
+    const res = await api.post("/api/v1/payment", paymentData);
+    return res;
   },
 };
 

@@ -53,11 +53,15 @@ export default function OrdersPage() {
 
   // ===== Lấy danh sách đơn hàng =====
   useEffect(() => {
-    const fetchOrders = async () => {
+    fetchOrders();
+  }, []);
+
+  // =================== Fetch Functions ========================
+  const fetchOrders = async () => {
       try {
-        const res = await orderService.getAll();
-        if (res.success && Array.isArray(res.data)) {
-          const mapped: Order[] = res.data.map((o: any) => ({
+        const res: any = await orderService.getAll();
+        if (res && res.result.length > 0) {
+          const mapped: Order[] = res.result.map((o: any) => ({
             id: o.id.toString(),
             customerName: o.customer?.name || "Khách vãng lai",
             staffName: o.user?.fullName || "N/A",
@@ -81,8 +85,6 @@ export default function OrdersPage() {
         console.error("Lấy danh sách đơn hàng thất bại:", error);
       }
     };
-    fetchOrders();
-  }, []);
 
   // ===== Lọc đơn hàng theo tìm kiếm =====
   const filteredOrders = orders.filter(
@@ -95,7 +97,7 @@ export default function OrdersPage() {
   const openDetailDialog = async (orderId: string) => {
     try {
       const res = await orderService.getById(orderId);
-      if (res.success && res.data) {
+      if (res && res.data) {
         const o = res.data;
         const mappedOrder: Order = {
           id: o.id.toString(),

@@ -41,7 +41,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import PromotionService from "@/service/promotionService";
-import type { Promotion } from "@/lib/types";
+import { Promotion, ApiListResponse } from "@/lib/types";
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -73,23 +73,26 @@ export default function PromotionsPage() {
   const fetchPromotion = async () => {
     try {
       setLoading(true);
-      const apiPromotions = await PromotionService.getAllPromotion();
-      const formattedPromotions = apiPromotions.map((item: any) => ({
-        id: item.id,
-        code: item.promoCode,
-        description: item.description,
-        discountType: item.discountType === "percent" ? "percentage" : "fixed",
-        discountValue: item.discountValue,
-        minPurchase: item.minOrderAmount,
-        startDate: item.startDate,
-        endDate: item.endDate,
-        usageCount: item.usedCount,
-        usageLimit: item.usageLimit,
-        isActive: item.status === "active",
-      }));
-      setPromotions(formattedPromotions);
+      const res: any = await PromotionService.getAllPromotion();
+      if (res && res.status === 200) {
+        const result = res?.result || [];
+        const formattedPromotions = res.result.map((item: any) => ({
+          id: item.id,
+          code: item.promoCode,
+          description: item.description,
+          discountType: item.discountType === "percent" ? "percentage" : "fixed",
+          discountValue: item.discountValue,
+          minPurchase: item.minOrderAmount,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          usageCount: item.usedCount,
+          usageLimit: item.usageLimit,
+          isActive: item.status === "active",
+        }));
+        setPromotions(formattedPromotions);
+      }
     } catch (err) {
-      toast.error("❌ Lỗi khi tải danh sách khuyến mãi!");
+      toast.error("Lỗi khi tải danh sách khuyến mãi!");
       console.error(err);
     } finally {
       setLoading(false);
@@ -165,30 +168,30 @@ export default function PromotionsPage() {
 
     try {
       setLoading(true);
-      const res = await PromotionService.createPromotion(payload);
+      const res: any = await PromotionService.createPromotion(payload);
       console.log("Response từ backend:", res);
 
       // Nếu backend trả về status thành công
-      if (res.statusCode === 200 || res.status === 201) {
-        toast.success(res.message || "🎉 Thêm khuyến mãi thành công!");
+      if (res.status === 200 || res.status === 201) {
+        toast.success(res.message || "Thêm khuyến mãi thành công!");
         setIsAddDialogOpen(false);
         resetForm();
         fetchPromotion();
       } else {
         // Nếu backend trả về lỗi nhưng không throw
-        toast.error(res.Message || "❌ Thêm khuyến mãi thất bại!");
+        toast.error(res.message || "Thêm khuyến mãi thất bại!");
       }
     } catch (err: any) {
-      console.error("❌ Lỗi khi thêm khuyến mãi:", err);
+      console.error("Lỗi khi thêm khuyến mãi:", err);
 
       // Nếu axios error có response từ backend
       if (err.response && err.response.data) {
         toast.error(
           err.response.data.Message ||
-            "❌ Lỗi server hoặc dữ liệu không hợp lệ!"
+            "Lỗi server hoặc dữ liệu không hợp lệ!"
         );
       } else {
-        toast.error("❌ Lỗi server hoặc dữ liệu không hợp lệ!");
+        toast.error("Lỗi server hoặc dữ liệu không hợp lệ!");
       }
     } finally {
       setLoading(false);
@@ -211,7 +214,7 @@ export default function PromotionsPage() {
       resetForm();
       fetchPromotion();
     } catch (err) {
-      toast.error("❌ Lỗi khi cập nhật khuyến mãi!");
+      toast.error("Lỗi khi cập nhật khuyến mãi!");
       console.error(err);
     }
   };
@@ -220,12 +223,12 @@ export default function PromotionsPage() {
     if (!selectedPromotion) return;
     try {
       await PromotionService.deletePromotion(selectedPromotion.id);
-      toast.success("🗑️ Xóa khuyến mãi thành công!");
+      toast.success("Xóa khuyến mãi thành công!");
       setIsDeleteDialogOpen(false);
       setSelectedPromotion(null);
       fetchPromotion();
     } catch (err) {
-      toast.error("❌ Lỗi khi xóa khuyến mãi!");
+      toast.error("Lỗi khi xóa khuyến mãi!");
       console.error(err);
     }
   };
@@ -251,15 +254,15 @@ export default function PromotionsPage() {
         status: promotion.isActive ? "inactive" : "active",
       };
 
-      const res = await PromotionService.updatePromotion(promotion.id, payload);
+      const res: any = await PromotionService.updatePromotion(promotion.id, payload);
 
-      toast.success(res?.message || "🔄 Cập nhật trạng thái thành công!");
+      toast.success(res?.message || "Cập nhật trạng thái thành công!");
       fetchPromotion();
     } catch (err: any) {
-      console.error("❌ Lỗi khi cập nhật trạng thái:", err);
+      console.error("Lỗi khi cập nhật trạng thái:", err);
       // hiển thị lỗi chi tiết từ backend
       const msg = err?.response?.data?.Message || err?.response?.data?.message;
-      toast.error(msg || "❌ Lỗi khi cập nhật trạng thái!");
+      toast.error(msg || "Lỗi khi cập nhật trạng thái!");
     }
   };
 
