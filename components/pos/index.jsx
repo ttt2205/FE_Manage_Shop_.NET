@@ -27,6 +27,7 @@ import {
 } from "react-bootstrap";
 import { customersData } from "@/lib/data/customers";
 import jsPDF from "jspdf";
+import "../../lib/fonts/roboto";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { toast, ToastContainer } from "react-toastify";
 import productService from "@/service/productService";
@@ -241,7 +242,7 @@ export default function POSPage() {
       // Tạo order
       const response = await orderService.createOrder(orderData);
       const createdOrder = response.data; // backend trả data bên trong field "data"
-
+      // console.log("Created Order:", createdOrder);
       if (!createdOrder?.id) {
         toast.error("Không tạo được đơn hàng!");
         return;
@@ -252,8 +253,9 @@ export default function POSPage() {
         orderId: Number(createdOrder.id),
         PaymentMethod: paymentMethod,
       });
-
-      generateInvoicePDF(createdOrder, cart);
+      const orderId = createdOrder.id;
+      const orderDetails = await orderService.getById(orderId);
+      generateInvoicePDF(orderDetails.data);
       toast.success("Tạo đơn hàng và thanh toán thành công!");
       clearCart();
       setIsCheckoutDialogOpen(false);
@@ -275,14 +277,18 @@ export default function POSPage() {
     return matchesCategory;
   });
 
-  const generateInvoicePDF = (order, cart) => {
+  const generateInvoicePDF = (order) => {
+    
+
     const doc = new jsPDF();
+    doc.setFont("Roboto-Regular", "normal");
+    console.log(doc.getFontList());
     doc.setFontSize(16);
     doc.text("HÓA ĐƠN THANH TOÁN", 105, 20, { align: "center" });
 
     doc.setFontSize(12);
     doc.text(`Mã đơn hàng: ${order.id}`, 20, 40);
-    doc.text(`Khách hàng: ${order.customerName || "Khách lẻ"}`, 20, 50);
+    doc.text(`Khách hàng: ${order.customer?.name || "Khách lẻ"}`, 20, 50);
     doc.text(`Ngày: ${new Date(order.orderDate).toLocaleString()}`, 20, 60);
 
     // Tiêu đề bảng
@@ -293,12 +299,12 @@ export default function POSPage() {
     doc.text("Thành tiền", 180, 80);
 
     let y = 90;
-    cart.forEach((item, index) => {
+    order.items.forEach((item, index) => {
       doc.text(`${index + 1}`, 20, y);
-      doc.text(`${item.product.name}`, 40, y);
+      doc.text(`${item.productName}`, 40, y);
       doc.text(`${item.quantity}`, 120, y);
-      doc.text(`${item.product.price}`, 140, y);
-      doc.text(`${item.product.price * item.quantity}`, 180, y);
+      doc.text(`${item.price}`, 140, y);
+      doc.text(`${item.subtotal}`, 180, y);
       y += 10;
     });
 
