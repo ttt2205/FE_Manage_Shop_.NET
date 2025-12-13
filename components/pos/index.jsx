@@ -212,19 +212,19 @@ export default function POSPage() {
 
   // ===================== CHECKOUT =====================
   const handleCheckout = async () => {
-    if (!selectedCustomer) {
-      toast.warning("Vui lòng chọn khách hàng!");
-      return;
-    }
+    // if (!selectedCustomer) {
+    //   toast.warning("Vui lòng chọn khách hàng!");
+    //   return;
+    // }
 
-    if (selectedPromotion.minOrderAmount > subtotal) {
+    if (selectedPromotion != null && selectedPromotion.minOrderAmount > subtotal) {
       toast.warning("Khuyễn mãi không hợp lệ");
       return;
     }
 
     const orderData = {
-      customerId: 1,
-      userId: 1,
+      customerId: selectedCustomer ? selectedCustomer.id : null,
+      userId: currentUser.id,
       promotionId: selectedPromotion ? selectedPromotion.id : null,
       status: "pending",
       totalAmount: total,
@@ -853,7 +853,7 @@ export default function POSPage() {
                                   {order.id}
                                 </p>
                                 <p className="text-muted small mb-1">
-                                  {order.customer.name}
+                                  {order.customer ? order.customer.name : "Khách lẻ"}
                                 </p>
                                 <p className="text-muted small mb-0">
                                   {new Date(order.orderDate).toLocaleString(
@@ -1004,7 +1004,7 @@ export default function POSPage() {
             >
               <option value="cash">Tiền mặt</option>
               <option value="card">Thẻ</option>
-              <option value="transfer">Chuyển khoản</option>
+              <option value="bank_transfer">Chuyển khoản</option>
             </Form.Select>
           </Form.Group>
           <Card className="mb-3">
