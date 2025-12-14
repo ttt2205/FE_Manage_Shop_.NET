@@ -91,54 +91,42 @@ const index = () => {
 
       const result = await response.json();
 
-      if (result.success) {
-        alert(`Đã bắt đầu phiên kiểm kê! ID: ${result.data.id}`);
-        setIsAuditModalOpen(false);
-        setAuditNote("");
-        router.push(`/admin/inventory/audit/${result.data.id}`);
-      } else {
-        alert(`Lỗi: ${result.message}`);
-      }
-    } catch (error) {
-      console.error("Lỗi khi bắt đầu kiểm kê:", error);
-      alert("Lỗi kết nối khi bắt đầu kiểm kê.");
-    }
-  };
+            if (result.success) {
+                alert(`Đã bắt đầu phiên kiểm kê! ID: ${result.data.id}`);
+                setIsAuditModalOpen(false);
+                setAuditNote("");
+                router.push(`/admin/audit_store/audit/${result.data.id}`);
+            } else {
+                alert(`Lỗi: ${result.message}`);
+            }
+        } catch (error) {
+            console.error("Lỗi khi bắt đầu kiểm kê:", error);
+            alert("Lỗi kết nối khi bắt đầu kiểm kê.");
+        }
+    };
 
-  return (
-    <Container fluid className="py-4">
-      <div className="d-flex justify-content-between align-items-start mb-4">
-        <div>
-          <h1 className="display-6 fw-bold">Kiểm kê kho hàng</h1>
-          <p className="text-muted">Quản lý kho hàng và tồn kho</p>
-        </div>
-        <ButtonGroup>
-          <Button
-            variant="outline-primary"
-            onClick={handleExportPdf}
-            className="d-flex align-items-center gap-2"
-          >
-            <FileDown size={18} />
-            Xuất PDF kho
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => setIsAuditModalOpen(true)}
-            className="d-flex align-items-center gap-2"
-          >
-            <Plus size={18} />
-            Tạo Phiên Kiểm Kê
-          </Button>
-          <Button
-            variant="warning"
-            onClick={() => router.push("/admin/audit_store/audit/history")}
-            className="d-flex align-items-center gap-2"
-          >
-            <Plus size={18} />
-            Lịch sử kiểm kê
-          </Button>
-        </ButtonGroup>
-      </div>
+    return (
+        <Container fluid className="py-4">
+            <div className="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 className="display-6 fw-bold">Kiểm kê kho hàng</h1>
+                    <p className="text-muted">Quản lý kho hàng và tồn kho</p>
+                </div>
+                <ButtonGroup>
+                    <Button variant="outline-primary" onClick={handleExportPdf} className="d-flex align-items-center gap-2">
+                        <FileDown size={18} />
+                        Xuất PDF kho
+                    </Button>
+                    <Button variant="primary" onClick={() => setIsAuditModalOpen(true)} className="d-flex align-items-center gap-2">
+                        <Plus size={18} />
+                        Tạo Phiên Kiểm Kê
+                    </Button>
+                    <Button variant="warning" onClick={() => router.push("/admin/audit_store/audit/history")} className="d-flex align-items-center gap-2">
+                        <Plus size={18} />
+                        Lịch sử kiểm kê
+                    </Button>
+                </ButtonGroup>
+            </div>
 
       <Card className="mb-4">
         <Card.Header className="bg-light">

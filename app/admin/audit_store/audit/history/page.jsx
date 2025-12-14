@@ -101,7 +101,7 @@ const AuditHistory = () => {
                                         <Button
                                             variant="outline-secondary"
                                             size="sm"
-                                            onClick={() => router.push(`/admin/inventory/audit/${session.id}`)}
+                                            onClick={() => router.push(`/admin/audit_store/audit/${session.id}`)}
                                         >
                                             <Eye size={16} />
                                         </Button>
