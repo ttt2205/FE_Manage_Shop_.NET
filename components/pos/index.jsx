@@ -260,12 +260,9 @@ export default function POSPage() {
       clearCart();
       setIsCheckoutDialogOpen(false);
     } catch (error) {
-      console.error(error);
-      toast.error(
-        error?.response?.data?.message ||
-          error.message ||
-          "Không thể tạo đơn hàng hoặc thanh toán."
-      );
+      const backendMessage =
+        error?.response?.data?.Message || error?.message || "Không thể tạo đơn hàng hoặc thanh toán.";
+      toast.error(backendMessage);
     }
   };
 
@@ -278,7 +275,7 @@ export default function POSPage() {
   });
 
   const generateInvoicePDF = (order) => {
-    
+
 
     const doc = new jsPDF();
     doc.setFont("Roboto-Regular", "normal");
@@ -613,11 +610,11 @@ export default function POSPage() {
                           </p>
                           {subtotal <
                             (selectedPromotion.minOrderAmount || 0) && (
-                            <p className="text-danger small mb-0">
-                              Chưa đủ điều kiện (tối thiểu{" "}
-                              {selectedPromotion.minOrderAmount}₫)
-                            </p>
-                          )}
+                              <p className="text-danger small mb-0">
+                                Chưa đủ điều kiện (tối thiểu{" "}
+                                {selectedPromotion.minOrderAmount}₫)
+                              </p>
+                            )}
                         </div>
                       ) : (
                         <p className="small text-muted mb-0">Không có</p>
@@ -805,9 +802,9 @@ export default function POSPage() {
                                     {promotion.discountType === "percent"
                                       ? `${promotion.discountValue}%`
                                       : new Intl.NumberFormat("vi-VN", {
-                                          style: "currency",
-                                          currency: "VND",
-                                        }).format(promotion.discountValue)}
+                                        style: "currency",
+                                        currency: "VND",
+                                      }).format(promotion.discountValue)}
                                   </p>
                                 </div>
                                 <Badge bg="light" text="dark" className="small">
@@ -879,20 +876,20 @@ export default function POSPage() {
                                     order.status === "paid"
                                       ? "success"
                                       : order.status === "refunded"
-                                      ? "info"
-                                      : order.status === "pending"
-                                      ? "warning"
-                                      : "danger"
+                                        ? "info"
+                                        : order.status === "pending"
+                                          ? "warning"
+                                          : "danger"
                                   }
                                   className="small"
                                 >
                                   {order.status === "paid"
                                     ? "Hoàn thành"
                                     : order.status === "refunded"
-                                    ? "Đã hoàn"
-                                    : order.status === "pending"
-                                    ? "Đang chờ"
-                                    : "Hủy"}
+                                      ? "Đã hoàn"
+                                      : order.status === "pending"
+                                        ? "Đang chờ"
+                                        : "Hủy"}
                                 </Badge>
                               </div>
                             </div>
@@ -956,9 +953,9 @@ export default function POSPage() {
                           {promotion.discountType === "percent"
                             ? `${promotion.discountValue}%`
                             : new Intl.NumberFormat("vi-VN", {
-                                style: "currency",
-                                currency: "VND",
-                              }).format(promotion.discountValue)}
+                              style: "currency",
+                              currency: "VND",
+                            }).format(promotion.discountValue)}
                         </p>
                         <p className="text-muted small mb-0">
                           Đơn tối thiểu:{" "}
