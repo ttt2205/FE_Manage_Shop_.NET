@@ -14,7 +14,7 @@ export default function StatisticsPage() {
       try {
         const [dashboard, revenue, top] = await Promise.all([
           statisticsService.getDashboardSummary(),
-          statisticsService.getRevenueByDay("2025-01-01", "2025-01-31"),
+          statisticsService.getRevenueByDay("2025-01-01", "2025-12-31"),
           statisticsService.getTopProducts(5),
         ]);
         setDashboardSummary(dashboard);

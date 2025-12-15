@@ -196,7 +196,7 @@ export default function index() {
         SupplierId: parseInt(formData.supplierId),
       });
       if (res.status === 200) {
-        toast.success("✅ Cập nhật sản phẩm thành công!");
+        toast.success(" Cập nhật sản phẩm thành công!");
         setIsEditDialogOpen(false);
         fetchProducts(currentPage, itemsPerPage);
       } else toast.error("Cập nhật thất bại!");
@@ -207,25 +207,31 @@ export default function index() {
       setLoading(false);
     }
   };
-
   const handleDelete = async () => {
     if (!selectedProduct) return;
+
     try {
       setLoading(true);
       const res = await productService.deleteProduct(selectedProduct.id);
-      if (res.status === 200) {
-        toast.success(`🗑️ Đã xoá sản phẩm "${selectedProduct.productName}"`);
-        fetchProducts(currentPage, itemsPerPage);
-      } else toast.error("Xóa sản phẩm thất bại!");
+
+      // Nếu không throw, xoá thành công
+      toast.success(` Đã xoá sản phẩm "${selectedProduct.productName}"`);
+      fetchProducts(currentPage, itemsPerPage);
+
     } catch (err) {
-      console.error(err);
-      toast.error("Lỗi server khi xóa sản phẩm!");
+      if (err.response && err.response.data && err.response.data.Message) {
+        toast.error(err.response.data.Message);
+      } else {
+        toast.error("Lỗi server khi xóa sản phẩm!");
+      }
+
     } finally {
       setIsDeleteDialogOpen(false);
       setSelectedProduct(null);
       setLoading(false);
     }
   };
+
 
   // ==================== RENDER ====================
   const columns = [

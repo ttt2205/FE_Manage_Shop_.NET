@@ -24,7 +24,7 @@ export function RevenueChart({ title, data, type }: { title: string; data: any[]
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey={key} tick={{ fontSize: 12 }} />
+              <XAxis dataKey={key} type="category" tick={{ fontSize: 12 }} />
               <YAxis width={100} tickFormatter={shortCurrency} />
               <Tooltip
                 formatter={(value: number) =>

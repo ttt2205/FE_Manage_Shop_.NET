@@ -249,16 +249,16 @@ export default function StaffPage() {
       const id = selectedStaff.id;
       const res = await deleteUser(id);
       if (res && res.status === 200) {
-        toast.success("Lock user successfully");
+        toast.success("Delete user successfully");
         setStaff(staff.filter((c) => c.id !== id));
         setIsDeleteDialogOpen(false);
       } else {
-        toast.error("Lock user unsuccessfully");
+        // toast.error("Delete user unsuccessfully");
         setIsDeleteDialogOpen(false);
         setSelectedCustomer(null);
       }
     } catch (error) {
-      toast.error("Lock user unsuccessfully");
+      toast.error("Delete user unsuccessfully");
       setIsDeleteDialogOpen(false);
       setSelectedCustomer(null);
     }
