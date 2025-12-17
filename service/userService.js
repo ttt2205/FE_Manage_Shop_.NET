@@ -26,6 +26,7 @@ export const createUser = async (data) => {
         return res;
     } catch (error) {
         console.error("Error createUser: ", error);
+        throw error;
     }
 }
 
@@ -37,6 +38,7 @@ export const updateUser = async (id, data) => {
         return res;
     } catch (error) {
         console.error("Error updateUser: ", error);
+        throw error;
     }
 }
 

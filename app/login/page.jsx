@@ -24,7 +24,7 @@ export default function LoginPage() {
       if (res && res.status === 200) {
         const role = res.data.user.role;
         // Redirect based on role
-        if (role === "admin") {
+        if (role === "admin" || role === "manager") {
           router.push("/admin");
         } else {
           router.push("/pos");

@@ -110,10 +110,9 @@ export function Customers({
       } else {
         toast.error("Update customer unsuccessfully");
       }
-      setIsEditDialogOpen(false);
-      setFormData({ name: "", email: "", phone: "", address: "" });
     } catch (error) {
       toast.error("Update customer unsuccessfully");
+    } finally {
       setIsEditDialogOpen(false);
       setFormData({ name: "", email: "", phone: "", address: "" });
     }
@@ -130,6 +129,12 @@ export function Customers({
       address: customer.address,
     });
     setIsEditDialogOpen(true);
+  };
+
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setSelectedCustomer(null);
+    setFormData({ name: "", email: "", phone: "", address: "" });
   };
 
   //============================= Render UI ===============================
@@ -319,7 +324,7 @@ export function Customers({
       </Modal>
 
       {/* Edit Modal */}
-      <Modal show={isEditDialogOpen} onHide={() => setIsEditDialogOpen(false)}>
+      <Modal show={isEditDialogOpen} onHide={() => closeEditDialog()}>
         <Modal.Header closeButton>
           <Modal.Title>Chỉnh sửa khách hàng</Modal.Title>
         </Modal.Header>
@@ -363,10 +368,7 @@ export function Customers({
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setIsEditDialogOpen(false)}
-          >
+          <Button variant="secondary" onClick={() => closeEditDialog()}>
             Hủy
           </Button>
           <Button variant="primary" onClick={handleEdit}>

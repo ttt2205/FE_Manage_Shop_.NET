@@ -1,31 +1,31 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { getCurrentUser } from "@/lib/auth"
-import { Spinner } from "react-bootstrap"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { Spinner } from "react-bootstrap";
 
 export function AuthGuard({ children, requireAdmin = false }) {
-  const router = useRouter()
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = getCurrentUser()
+    const currentUser = getCurrentUser();
 
     if (!currentUser) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
-    if (requireAdmin && currentUser.role !== "admin") {
-      router.push("/pos")
-      return
+    if (requireAdmin && currentUser.role === "staff") {
+      router.push("/pos");
+      return;
     }
 
-    setUser(currentUser)
-    setLoading(false)
-  }, [router, requireAdmin])
+    setUser(currentUser);
+    setLoading(false);
+  }, [router, requireAdmin]);
 
   if (loading) {
     return (
@@ -40,12 +40,12 @@ export function AuthGuard({ children, requireAdmin = false }) {
           <p className="text-muted small">Đang tải...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

@@ -101,30 +101,79 @@ export default function StaffPage() {
   };
 
   //============================= Handle Functions ===================================
+  // Họ tên (có dấu tiếng Việt)
+  const FULLNAME_REGEX = /^[A-Za-zÀ-ỹ]+(?:\s[A-Za-zÀ-ỹ]+)*$/;
+
+  // Username
+  const USERNAME_REGEX = /^[a-z0-9_]{4,20}$/;
+
+  const isEmpty = (value) =>
+    value === null || value === undefined || value.trim() === "";
+
+  const isValidFullName = (name) => FULLNAME_REGEX.test(name.trim());
+
+  const isValidUsername = (username) => USERNAME_REGEX.test(username);
+
   const handleAdd = async () => {
     try {
-      const data = { ...formData };
-      const res = await createUser(data);
-      if (res && res.status === 201) {
-        setStaff([...staff, res.data]);
+      const { fullName, username, password, role } = formData;
+
+      if (isEmpty(fullName)) {
+        toast.error("Full name is required");
+        return;
+      }
+
+      if (!isValidFullName(fullName)) {
+        toast.error("Full name must contain only letters and spaces");
+        return;
+      }
+
+      if (isEmpty(username)) {
+        toast.error("Username is required");
+        return;
+      }
+
+      if (!isValidUsername(username)) {
+        toast.error(
+          "Username must be 4-20 characters, lowercase letters, numbers, underscore"
+        );
+        return;
+      }
+
+      if (isEmpty(password)) {
+        toast.error("Password is required");
+        return;
+      }
+
+      if (isEmpty(role)) {
+        toast.error("Role is required");
+        return;
+      }
+
+      const res = await createUser({
+        ...formData,
+        fullName: fullName.trim(),
+        username: username.trim(),
+      });
+
+      if (res?.status === 201 && res?.data) {
+        setStaff((prev) => [...prev, res.data]);
         toast.success("Create user successfully");
       } else {
         toast.error("Create user unsuccessfully");
       }
-      setIsAddDialogOpen(false);
-      setFormData({
-        fullName: "",
-        username: "",
-        role: "staff",
-      });
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Create user unsuccessfully"
+        error?.response?.data?.message ||
+          error?.response?.data?.Message ||
+          "Create user unsuccessfully"
       );
+    } finally {
       setIsAddDialogOpen(false);
       setFormData({
         fullName: "",
         username: "",
+        password: "",
         role: "staff",
       });
     }
@@ -138,26 +187,54 @@ export default function StaffPage() {
 
     try {
       const id = selectedStaff.id;
-      const data = { ...formData };
-      const res = await updateUser(id, data);
+      const { fullName, username, password, role } = formData;
+
+      if (isEmpty(fullName)) {
+        toast.error("Full name is required");
+        return;
+      }
+
+      if (!isValidFullName(fullName)) {
+        toast.error("Full name must contain only letters and spaces");
+        return;
+      }
+
+      if (isEmpty(username)) {
+        toast.error("Username is required");
+        return;
+      }
+
+      if (!isValidUsername(username)) {
+        toast.error(
+          "Username must be 4-20 characters, lowercase letters, numbers, underscore"
+        );
+        return;
+      }
+
+      if (isEmpty(role)) {
+        toast.error("Role is required");
+        return;
+      }
+
+      const res = await updateUser(id, formData);
       if (res && res.status === 200) {
         fetchUsers();
         toast.success("Update user successfully");
       } else {
         toast.error("Update user unsuccessfully");
       }
-      setIsEditDialogOpen(false);
-      setFormData({
-        fullName: "",
-        username: "",
-        role: "staff",
-      });
     } catch (error) {
-      toast.error("Update user unsuccessfully");
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.Message ||
+          "Update user unsuccessfully"
+      );
+    } finally {
       setIsEditDialogOpen(false);
       setFormData({
         fullName: "",
         username: "",
+        password: "",
         role: "staff",
       });
     }
@@ -308,6 +385,8 @@ export default function StaffPage() {
                       >
                         {staffMember.role === "admin"
                           ? "Quản trị"
+                          : staffMember.role === "manager"
+                          ? "Quản lý"
                           : "Nhân viên"}
                       </Badge>
                     </TableCell>
@@ -337,7 +416,7 @@ export default function StaffPage() {
                       <Button
                         variant="outline-danger"
                         size="sm"
-                        onClick={() => openDeleteDialog(staff)}
+                        onClick={() => openDeleteDialog(staffMember)}
                         className="p-2"
                       >
                         <Trash2 size={16} />
@@ -367,6 +446,7 @@ export default function StaffPage() {
             setFormData({
               fullName: "",
               username: "",
+              password: "",
               role: "staff",
             });
           }
@@ -430,7 +510,7 @@ export default function StaffPage() {
                 </SelectTrigger>
                 <SelectContent className="border-2 border-border">
                   <SelectItem value="staff">Nhân viên</SelectItem>
-                  <SelectItem value="admin">Quản trị viên</SelectItem>
+                  <SelectItem value="manager">Quản trị viên</SelectItem>
                 </SelectContent>
               </Select>
             </div>

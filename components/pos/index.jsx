@@ -257,15 +257,17 @@ export default function POSPage() {
       const orderDetails = await orderService.getById(orderId);
       generateInvoicePDF(orderDetails.data);
       toast.success("Tạo đơn hàng và thanh toán thành công!");
-      clearCart();
-      setIsCheckoutDialogOpen(false);
     } catch (error) {
-      console.error(error);
+      console.error("Checkout Error:", error);
       toast.error(
         error?.response?.data?.message ||
+          error?.response?.data?.Message ||
           error.message ||
           "Không thể tạo đơn hàng hoặc thanh toán."
       );
+    } finally {
+      clearCart();
+      setIsCheckoutDialogOpen(false);
     }
   };
 
