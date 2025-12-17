@@ -12,6 +12,16 @@ const inventoryService = {
     }
   },
 
+  getAllInventory: async () => {
+    try {
+      const response = await api.get(`/api/v1/inventory/all`);
+      return response;
+    } catch (error) {
+      console.error("Error getAllInventory:", error);
+      throw error;
+    }
+  },
+
   // Lấy tồn kho theo Product ID
   getInventoryByProductId: async (productId) => {
     try {

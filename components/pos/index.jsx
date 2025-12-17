@@ -217,7 +217,7 @@ export default function POSPage() {
       return;
     }
 
-    if (selectedPromotion.minOrderAmount > subtotal) {
+    if (selectedPromotion ?? selectedPromotion?.minOrderAmount > subtotal) {
       toast.warning("Khuyễn mãi không hợp lệ");
       return;
     }

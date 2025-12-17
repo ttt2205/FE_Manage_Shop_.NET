@@ -14,6 +14,10 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { Plus, Search, FileDown } from "lucide-react";
+import { toast } from "react-toastify";
+import inventoryService from "@/service/inventoryService";
+import categoryService from "@/service/categoryService";
+import { startAuditSesstion } from "@/service/audit-service";
 
 const API_URL = `${process.env.NEXT_PUBLIC_API_BACKEND_URL}`;
 
@@ -21,6 +25,7 @@ const index = () => {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("Tất cả");
   const router = useRouter();
 
@@ -28,32 +33,38 @@ const index = () => {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditNote, setAuditNote] = useState("");
 
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+  // ================================ Fetch Functions ============================
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/v1/inventory/all`);
-      const apiResponse = await response.json();
+      const response = await inventoryService.getAllInventory();
 
-      if (apiResponse.success && apiResponse.data) {
-        setInventory(apiResponse.data);
-      } else {
-        console.error("Lỗi khi lấy dữ liệu:", apiResponse.message);
+      if (response && response.status === 200) {
+        setInventory(response.data || []);
       }
     } catch (error) {
-      console.error("Lỗi kết nối API:", error);
+      toast.error("Lỗi kết nối khi lấy danh sách sản phẩm tồn kho!");
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = [
-    "Tất cả",
-    "Đồ ăn",
-    "Bánh kẹo",
-    "Gia vị",
-    "Đồ gia dụng",
-    "Mỹ phẩm",
-  ];
+  const fetchCategories = async () => {
+    try {
+      const res = await categoryService.getCategories();
+      if (res && res.status === 200) {
+        setCategories(res.result || []);
+      }
+    } catch (error) {
+      toast.error("Không tải được danh mục sản phẩm!");
+    }
+  };
 
   const filteredProducts = inventory.filter((item) => {
     if (!item.product) return false;
@@ -73,38 +84,29 @@ const index = () => {
     return matchesSearch && matchesCategory;
   });
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
+  // ================================ Handle Functions ============================
   const handleExportPdf = () => {
     window.open(`${API_URL}/api/v1/inventory/export-pdf`, "_blank");
   };
 
   const handleStartAudit = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/audit/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: auditNote }),
-      });
+      const res = await startAuditSesstion({ userId: 1, auditNote });
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert(`Đã bắt đầu phiên kiểm kê! ID: ${result.data.id}`);
+      if (res && res.status === 201) {
+        toast.success(`Đã bắt đầu phiên kiểm kê! ID: ${res.data.id}`);
         setIsAuditModalOpen(false);
         setAuditNote("");
-        router.push(`/admin/inventory/audit/${result.data.id}`);
+        router.push(`/admin/audit_store/audit/${res.data.id}`);
       } else {
-        alert(`Lỗi: ${result.message}`);
+        toast.error(`Lỗi: ${res.data.message}`);
       }
     } catch (error) {
-      console.error("Lỗi khi bắt đầu kiểm kê:", error);
-      alert("Lỗi kết nối khi bắt đầu kiểm kê.");
+      toast.error("Lỗi kết nối khi bắt đầu kiểm kê.");
     }
   };
 
+  // ================================ Render UI ============================
   return (
     <Container fluid className="py-4">
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -112,7 +114,7 @@ const index = () => {
           <h1 className="display-6 fw-bold">Kiểm kê kho hàng</h1>
           <p className="text-muted">Quản lý kho hàng và tồn kho</p>
         </div>
-        <ButtonGroup>
+        <ButtonGroup className="gap-2">
           <Button
             variant="outline-primary"
             onClick={handleExportPdf}
@@ -161,9 +163,10 @@ const index = () => {
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
+                <option value="Tất cả">{"Tất cả"}</option>
                 {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                  <option key={cat.id} value={cat.categoryName}>
+                    {cat.categoryName}
                   </option>
                 ))}
               </Form.Select>
