@@ -27,6 +27,7 @@ import {
 } from "react-bootstrap";
 import { customersData } from "@/lib/data/customers";
 import jsPDF from "jspdf";
+import "../../lib/fonts/roboto";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { toast, ToastContainer } from "react-toastify";
 import productService from "@/service/productService";
@@ -212,10 +213,10 @@ export default function POSPage() {
 
   // ===================== CHECKOUT =====================
   const handleCheckout = async () => {
-    if (!selectedCustomer) {
-      toast.warning("Vui lòng chọn khách hàng!");
-      return;
-    }
+    // if (!selectedCustomer) {
+    //   toast.warning("Vui lòng chọn khách hàng!");
+    //   return;
+    // }
 
     if (selectedPromotion ?? selectedPromotion?.minOrderAmount > subtotal) {
       toast.warning("Khuyễn mãi không hợp lệ");
@@ -223,8 +224,8 @@ export default function POSPage() {
     }
 
     const orderData = {
-      customerId: 1,
-      userId: 1,
+      customerId: selectedCustomer ? selectedCustomer.id : null,
+      userId: currentUser.id,
       promotionId: selectedPromotion ? selectedPromotion.id : null,
       status: "pending",
       totalAmount: total,
@@ -241,7 +242,7 @@ export default function POSPage() {
       // Tạo order
       const response = await orderService.createOrder(orderData);
       const createdOrder = response.data; // backend trả data bên trong field "data"
-
+      // console.log("Created Order:", createdOrder);
       if (!createdOrder?.id) {
         toast.error("Không tạo được đơn hàng!");
         return;
@@ -252,8 +253,9 @@ export default function POSPage() {
         orderId: Number(createdOrder.id),
         PaymentMethod: paymentMethod,
       });
-
-      generateInvoicePDF(createdOrder, cart);
+      const orderId = createdOrder.id;
+      const orderDetails = await orderService.getById(orderId);
+      generateInvoicePDF(orderDetails.data);
       toast.success("Tạo đơn hàng và thanh toán thành công!");
       clearCart();
       setIsCheckoutDialogOpen(false);
@@ -275,14 +277,16 @@ export default function POSPage() {
     return matchesCategory;
   });
 
-  const generateInvoicePDF = (order, cart) => {
+  const generateInvoicePDF = (order) => {
     const doc = new jsPDF();
+    doc.setFont("Roboto-Regular", "normal");
+    console.log(doc.getFontList());
     doc.setFontSize(16);
     doc.text("HÓA ĐƠN THANH TOÁN", 105, 20, { align: "center" });
 
     doc.setFontSize(12);
     doc.text(`Mã đơn hàng: ${order.id}`, 20, 40);
-    doc.text(`Khách hàng: ${order.customerName || "Khách lẻ"}`, 20, 50);
+    doc.text(`Khách hàng: ${order.customer?.name || "Khách lẻ"}`, 20, 50);
     doc.text(`Ngày: ${new Date(order.orderDate).toLocaleString()}`, 20, 60);
 
     // Tiêu đề bảng
@@ -293,12 +297,12 @@ export default function POSPage() {
     doc.text("Thành tiền", 180, 80);
 
     let y = 90;
-    cart.forEach((item, index) => {
+    order.items.forEach((item, index) => {
       doc.text(`${index + 1}`, 20, y);
-      doc.text(`${item.product.name}`, 40, y);
+      doc.text(`${item.productName}`, 40, y);
       doc.text(`${item.quantity}`, 120, y);
-      doc.text(`${item.product.price}`, 140, y);
-      doc.text(`${item.product.price * item.quantity}`, 180, y);
+      doc.text(`${item.price}`, 140, y);
+      doc.text(`${item.subtotal}`, 180, y);
       y += 10;
     });
 
@@ -853,7 +857,9 @@ export default function POSPage() {
                                   {order.id}
                                 </p>
                                 <p className="text-muted small mb-1">
-                                  {order.customer.name}
+                                  {order.customer
+                                    ? order.customer.name
+                                    : "Khách lẻ"}
                                 </p>
                                 <p className="text-muted small mb-0">
                                   {new Date(order.orderDate).toLocaleString(
@@ -1004,7 +1010,7 @@ export default function POSPage() {
             >
               <option value="cash">Tiền mặt</option>
               <option value="card">Thẻ</option>
-              <option value="transfer">Chuyển khoản</option>
+              <option value="bank_transfer">Chuyển khoản</option>
             </Form.Select>
           </Form.Group>
           <Card className="mb-3">

@@ -14,7 +14,7 @@ export function createListResponse<T>(results: T[], message = "Success"): ApiLis
     success: true,
     status: 200,
     message,
-    results,
+    result: results,
   }
 }
 
