@@ -63,11 +63,11 @@ export default function OrdersPage() {
         if (res && res.result.length > 0) {
           const mapped: Order[] = res.result.map((o: any) => ({
             id: o.id.toString(),
-            customerName: o.customer?.name || "Khách vãng lai",
+            customerName: o.customer?.name || "Khách lẻ",
             staffName: o.user?.fullName || "N/A",
             promotionCode: o.promotion?.promoCode || null,
             items: o.items?.map((i: any) => ({
-              productName: i.product?.productName || `Sản phẩm #${i.productId}`,
+              productName: i.productName || `Sản phẩm #${i.productId}`,
               price: i.price,
               quantity: i.quantity,
               subtotal: i.price * i.quantity,
@@ -101,11 +101,11 @@ export default function OrdersPage() {
         const o = res.data;
         const mappedOrder: Order = {
           id: o.id.toString(),
-          customerName: o.customer?.name || "Khách vãng lai",
+          customerName: o.customer?.name || "Khách lẻ",
           staffName: o.user?.fullName || "N/A",
           promotionCode: o.promotion?.promoCode || null,
           items: o.items?.map((i: any) => ({
-            productName: i.product?.productName || `Sản phẩm #${i.productId}`,
+            productName: i.productName || `Sản phẩm #${i.productId}`,
             price: i.price,
             quantity: i.quantity,
             subtotal: i.price * i.quantity,
@@ -200,8 +200,9 @@ export default function OrdersPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => openDetailDialog(o.id)}
+                        className="cursor-pointer"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4 cursor-pointer" />
                       </Button>
                     </TableCell>
                   </TableRow>

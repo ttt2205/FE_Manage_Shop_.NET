@@ -37,7 +37,7 @@ export default function StatisticsClient({
       setLoading(false)
     } else if (tab === "year" && !revenueByYear) {
       setLoading(true)
-      const data = await statisticsService.getRevenueByYear(2023, 2025)
+      const data = await statisticsService.getRevenueByYear(2022, 2026)
       setRevenueByYear(data)
       setLoading(false)
     }

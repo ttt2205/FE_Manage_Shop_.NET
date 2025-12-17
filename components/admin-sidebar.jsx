@@ -17,33 +17,37 @@ import {
 } from "lucide-react";
 
 const menuItems = [
+  // {
+  //   title: "Tổng quan",
+  //   href: "/admin",
+  //   icon: LayoutDashboard,
+  // },
   {
-    title: "Tổng quan",
-    href: "/admin",
-    icon: LayoutDashboard,
+    title: "Đơn hàng",
+    href: "/admin/orders",
+    icon: ShoppingCart,
   },
-  {
-    title: "Khách hàng",
-    href: "/admin/customers",
-    icon: Users,
-  },
-  { title: "Nhà cung cấp", href: "/admin/suppliers", icon: Truck }, // THÊM DÒ NÀY
   {
     title: "Sản phẩm",
     href: "/admin/products",
     icon: Package,
   },
   { title: "Tồn kho", href: "/admin/inventory", icon: Building }, // THÊM DÒNG NÀY
+  { title: "Nhà cung cấp", href: "/admin/suppliers", icon: Truck }, // THÊM DÒ NÀY
+  {
+    title: "Khách hàng",
+    href: "/admin/customers",
+    icon: Users,
+  },
+  
+  
+  
   {
     title: "Khuyến mãi",
     href: "/admin/promotions",
     icon: Tag,
   },
-  {
-    title: "Đơn hàng",
-    href: "/admin/orders",
-    icon: ShoppingCart,
-  },
+  
   {
     title: "Nhân viên",
     href: "/admin/staff",
