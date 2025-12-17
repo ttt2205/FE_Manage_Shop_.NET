@@ -80,7 +80,8 @@ export default function PromotionsPage() {
           id: item.id,
           code: item.promoCode,
           description: item.description,
-          discountType: item.discountType === "percent" ? "percentage" : "fixed",
+          discountType:
+            item.discountType === "percent" ? "percentage" : "fixed",
           discountValue: item.discountValue,
           minPurchase: item.minOrderAmount,
           startDate: item.startDate,
@@ -187,8 +188,7 @@ export default function PromotionsPage() {
       // Nếu axios error có response từ backend
       if (err.response && err.response.data) {
         toast.error(
-          err.response.data.Message ||
-            "Lỗi server hoặc dữ liệu không hợp lệ!"
+          err.response.data.Message || "Lỗi server hoặc dữ liệu không hợp lệ!"
         );
       } else {
         toast.error("Lỗi server hoặc dữ liệu không hợp lệ!");
@@ -213,9 +213,19 @@ export default function PromotionsPage() {
       setSelectedPromotion(null);
       resetForm();
       fetchPromotion();
-    } catch (err) {
-      toast.error("Lỗi khi cập nhật khuyến mãi!");
-      console.error(err);
+    } catch (err: any) {
+      console.error("Lỗi khi thêm khuyến mãi:", err);
+
+      // Nếu axios error có response từ backend
+      if (err.response && err.response.data) {
+        toast.error(
+          err.response.data.Message || "Lỗi server hoặc dữ liệu không hợp lệ!"
+        );
+      } else {
+        toast.error("Lỗi server hoặc dữ liệu không hợp lệ!");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -228,7 +238,7 @@ export default function PromotionsPage() {
       setSelectedPromotion(null);
       fetchPromotion();
     } catch (err) {
-      toast.error("Lỗi khi xóa khuyến mãi!");
+      toast.error("Không thể xóa khuyến mãi do liên quan đến đơn hàng!");
       console.error(err);
     }
   };
@@ -254,7 +264,10 @@ export default function PromotionsPage() {
         status: promotion.isActive ? "inactive" : "active",
       };
 
-      const res: any = await PromotionService.updatePromotion(promotion.id, payload);
+      const res: any = await PromotionService.updatePromotion(
+        promotion.id,
+        payload
+      );
 
       toast.success(res?.message || "Cập nhật trạng thái thành công!");
       fetchPromotion();

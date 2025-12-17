@@ -259,9 +259,10 @@ export default function InventoryPage() {
           item.price,
           new Date(item.updatedAt).toLocaleDateString("vi-VN"),
         ]);
+        const BOM = "\uFEFF";
         const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
 
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -484,7 +485,7 @@ export default function InventoryPage() {
           <Modal.Title>Nhập hàng</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <h6 className="mb-3">Nhập từ file Excel</h6>
             <div className="d-flex gap-2 align-items-center">
               <Button
@@ -518,11 +519,11 @@ export default function InventoryPage() {
                 onChange={handleFileUpload}
               />
             </div>
-          </div>
+          </div> */}
 
           <hr />
 
-          <h6 className="mb-3">Nhập thủ công</h6>
+          {/* <h6 className="mb-3">Nhập thủ công</h6> */}
           {importItems.map((item, index) => (
             <div key={index} className="row g-2 mb-2">
               <div className="col-md-6">
